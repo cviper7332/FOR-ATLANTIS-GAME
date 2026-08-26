@@ -1,0 +1,45 @@
+# ---- Unreal Engine 5.8 build/cache output ----
+ProjectAtlantis/Binaries/
+ProjectAtlantis/Intermediate/
+ProjectAtlantis/DerivedDataCache/
+ProjectAtlantis/Saved/
+ProjectAtlantis/.vs/
+
+# Cooked/packaged builds if ever produced
+ProjectAtlantis/Build/
+ProjectAtlantis/Distribution/
+ProjectAtlantis/Releases/
+
+# Automation/testing scratch (not the .sln/.slnx themselves)
+ProjectAtlantis/Automation_ProjectAtlantis_Files/
+
+# ---- Visual Studio / Rider / VS Code artifacts ----
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+[Oo]bj/
+[Bb]in/
+.idea/
+.vscode/
+*.opendb
+
+# Rider
+.Rider*/
+
+# ---- OS junk ----
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ---- Unreal derived/generated (belt-and-suspenders, in case paths differ) ----
+**/Binaries/
+**/Intermediate/
+**/DerivedDataCache/
+**/Saved/
+*.tmp
+*.diagsession
