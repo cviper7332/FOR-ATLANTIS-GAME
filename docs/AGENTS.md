@@ -157,6 +157,30 @@ as the safety net finally existing, not as permission to be less careful with it
 
 ---
 
+### Rule 12 — Diffs Must Be Shown as Their Own Block, Not Buried in Tool Output (Mandatory)
+*New — established August 26, 2026, after a diff shown only inside a Bash tool-output block was
+treated as "shown" when it had not actually been reviewed as a distinct thing to approve.*
+*Numbered 12, not 5, on purpose — placed in Part I because it is a conduct rule, not an
+architecture rule, but appended after Rule 11 rather than renumbering Part II's Rules 5–11.
+Rules 1–4 and 12 are Conduct; Rules 5–11 are Architecture. The gap in sequence is intentional,
+not an error.*
+
+Any diff presented for review — before a commit, before an overwrite, before any destructive
+action — must be printed as its own explicit block in the reply itself (a fenced code block, or
+the diff clearly reproduced outside of a raw tool-call/tool-output wrapper), not left sitting
+only inside a Bash tool's IN/OUT transcript.
+
+- A diff inside a Bash output block reads as *evidence a command ran*, not as *content being
+  submitted for approval* — the two are easy to conflate, and conflating them is exactly how an
+  unreviewed diff gets treated as reviewed.
+- This applies regardless of tier (CC or CC/Opus) and regardless of how mechanical the
+  underlying change seems.
+- Showing the diff via `git diff` inside a Bash call is still fine as the mechanism to *generate*
+  the diff — the requirement is that the diff's actual content is then also reproduced as its own
+  visible block in the reply, not left implicit in the tool transcript alone.
+
+---
+
 # Part II — Architecture Rules (bind combat code as it is written)
 
 ### Rule 5 — Simulation / Presentation Separation (Mandatory)
@@ -443,6 +467,7 @@ Before closing any milestone, verify each rule:
 | 9 — Observability | Dedicated log category, not `LogTemp`; no per-frame diagnostic spam left in the production path |
 | 10 — Units and Domains | Grid vs. world, frames vs. seconds, elevation level vs. height, screen vs. grid — each converted at exactly one named boundary |
 | 11 — Combat Code Lives Inside RTAC | No combat logic (grid, tiles, movement, damage resolution, combat UI/actors) added under `Source/ProjectAtlantis/`; new combat source goes in `Plugins/RTAC/` |
+| 12 — Diffs Shown as Their Own Block | Every diff presented for review before a commit/overwrite/destructive action was printed as its own visible block in the reply, not left only inside Bash tool output |
 
 ---
 
