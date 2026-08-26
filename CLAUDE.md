@@ -49,10 +49,10 @@ FOR ATLANTIS GAME\
     └── Content\                    ← 718 assets (incl. 521 __External*)
 ```
 
-**Not a git repository.** There is no version control on this project as of August 26, 2026.
-Nothing is recoverable after an overwrite. Before any bulk edit, mass rename, or deletion:
-say so first and get explicit confirmation. Prefer additive changes over destructive ones.
-Raise setting up git as a real priority whenever the topic is open.
+**Git-tracked as of August 26, 2026** — see Version Control below for the remote and initial
+commit. Before this date the project had no version control; that history is preserved in
+`docs/AGENTS.md` Rule 3's addendum. Still exercise care before bulk edits, mass renames, or
+deletions — a remote push doesn't undo a bad local commit by itself.
 
 ### Source module map — `ProjectAtlantis/Source/ProjectAtlantis/`
 
@@ -79,6 +79,24 @@ Adding a new source subfolder requires adding it to `PublicIncludePaths` in the 
 ### Enabled plugins
 `ModelingToolsEditorMode` (Editor only), `StateTree`, `GameplayStateTree`,
 `ModelContextProtocol`, `EditorToolset`.
+
+---
+
+## Version Control
+
+**Repo:** https://github.com/cviper7332/FOR-ATLANTIS-GAME.git
+**Branch:** `main`
+**Initialized:** August 26, 2026. First commit: "Initial commit: stock UE5.8 Third Person
+template + variants, pre-combat-implementation baseline" (856 files, ~135 MB tracked; largest
+tracked file ~21 MB, under GitHub's 50 MB soft / 100 MB hard thresholds — no LFS needed yet).
+
+`.gitignore` excludes `Binaries/`, `Intermediate/`, `.vs/`, `DerivedDataCache/`, `Saved/`, and
+standard VS/Rider/OS artifacts. `ProjectAtlantis/Content/__ExternalActors__/` and
+`__ExternalObjects__/` **are tracked** — they are real per-actor data, not cache, despite the
+naming (see Do Not Touch above regarding hand-editing them).
+
+Re-check the 50 MB/100 MB thresholds before committing new binary content — Content assets
+(meshes, textures, animations) are the files most likely to cross them as work continues.
 
 ---
 

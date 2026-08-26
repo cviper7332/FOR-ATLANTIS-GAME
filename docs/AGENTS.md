@@ -129,6 +129,14 @@ after an overwrite. Until git exists, every destructive action is permanent.
 - **Raise setting up git whenever the topic is open.** This rule is a workaround for a missing
   safety net, not a substitute for one. It should be retired, not lived with.
 
+**Addendum, August 26, 2026:** as of today, the project has git and a remote at
+`https://github.com/cviper7332/FOR-ATLANTIS-GAME.git` (branch `main`, initial commit `207d361`).
+See `CLAUDE.md` → Version Control for details. "No undo" above no longer means "no safety net" —
+a committed and pushed state is recoverable. It does **not** retire this rule: uncommitted local
+changes, and any operation run before a change is committed, are still unrecoverable exactly as
+described above, and care before destructive actions remains good practice regardless. Treat this
+as the safety net finally existing, not as permission to be less careful with it.
+
 ---
 
 ### Rule 4 — Append, Don't Rewrite: The Decision Log (Mandatory)
