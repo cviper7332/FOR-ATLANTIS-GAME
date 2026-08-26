@@ -79,7 +79,8 @@ Adding a new source subfolder requires adding it to `PublicIncludePaths` in the 
 
 ### Enabled plugins
 `ModelingToolsEditorMode` (Editor only), `StateTree`, `GameplayStateTree`,
-`ModelContextProtocol`, `EditorToolset`.
+`ModelContextProtocol`, `EditorToolset`, `MCPClientToolset` (auto-added by the editor during
+MCP tool usage on August 26, 2026, not a manual decision).
 
 ---
 
