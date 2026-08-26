@@ -213,6 +213,18 @@ Console commands (in the editor console, `ECVF_Cheat`):
 - Blueprint graph inspection and editing
 - Inspecting actors, components, assets, and material/render-target state in the editor
 
+**Reading logs via MCP:** `EditorToolset.LogsToolset` exposes `GetLogEntries(category, pattern,
+maxEntries=1000)`, `GetLogCategories(filter)`, `GetVerbosity(category)`,
+`SetVerbosity(category, verbosity)`. Always pass `category` explicitly on `GetLogEntries` — it
+silently defaults to `"LogsToolset"` (the toolset's own output) if omitted, not the category you
+meant. `pattern` is required; pass `".*"` to match everything within a category. Confirmed
+working live August 26, 2026 (verified `LogRTAC: RTAC module loaded.` via this path).
+
+Disk fallback if MCP tools aren't loaded: `ProjectAtlantis/Saved/Logs/ProjectAtlantis.log` — also
+check for a `_2.log` (present when a second editor instance is running) and timestamped
+`*-backup-<date>-<time>.log` files (prior sessions' rotated logs). Grep all of them, not just the
+primary file, if an expected line seems to be missing.
+
 **MCP file-read rule:** always re-read a file immediately before any find-and-replace. The
 editor's project panel lags CC edits by one round-trip, and acting on stale content silently
 clobbers the newer version.
@@ -221,6 +233,32 @@ clobbers the newer version.
 
 **After any full rebuild, restart CC** to re-establish MCP tool access, and consider
 `ModelContextProtocol.RefreshTools` if tool schemas look stale.
+
+### Enabling MCP auto-start (do this once)
+
+1. In the editor: Edit > Editor Preferences > General > Model Context Protocol.
+2. Check "Auto Start Server." When enabled, the server starts automatically on every editor
+   launch and binds to `http://127.0.0.1:8000/mcp`. Default is off.
+3. The same panel exposes the listening port (default 8000) and URL path (default `/mcp`) if
+   either default ever conflicts with another local service.
+4. Without auto-start, start the server manually each session via the editor console:
+   `ModelContextProtocol.StartServer` (optionally `ModelContextProtocol.StartServer <port>`).
+
+**If the server doesn't appear to start:** check the Output Log at editor startup — a successful
+auto-start logs its bind address, port, and URL path there, and a bind failure (port in use,
+missing dependent plugin) surfaces there too. The plugin's own log category is
+`LogModelContextProtocol` — raise its verbosity with `Log LogModelContextProtocol Verbose` in
+the console if more detail is needed.
+
+**On plugin naming — `AllToolsets` vs. `EditorToolset`:** these are two separate, sibling plugins
+under `Engine/Plugins/Experimental/Toolsets/`, not the same plugin under a different name.
+`AllToolsets` is a pure aggregator ("Aggregator plugin that depends on all Toolsets plugins")
+that bundles ~20 individual toolset plugins together for convenience. `EditorToolset` — the one
+in this project's "Enabled plugins" list above — is one of the ~20 plugins `AllToolsets` bundles,
+not a rename of it. `LogsToolset` and `EditorAppToolset` (the toolsets actually queried above)
+are sub-toolsets bundled *inside* `EditorToolset` itself, which is why enabling `EditorToolset`
+alone was sufficient here — this project never needed the full `AllToolsets` aggregator.
+Confirmed by reading both plugins' `.uplugin` descriptors directly, August 26, 2026.
 
 ---
 
