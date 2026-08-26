@@ -23,7 +23,7 @@ engine, and the same machine are involved here. **No incidents have been logged 
 ATLANTIS yet.** When one occurs, log it here with its date, in the same format — do not delete
 the PRS case that predicted it.
 
-**Adoption status:** Rules 1–4 (Conduct) are in force **now**. Rules 5–10 (Architecture) bind
+**Adoption status:** Rules 1–4 (Conduct) are in force **now**. Rules 5–11 (Architecture) bind
 combat code as it is written; there is none yet, so they currently read as design constraints
 rather than audit targets.
 
@@ -288,6 +288,28 @@ For this project the domains that will collide are:
 
 ---
 
+### Rule 11 — Combat Code Lives Inside the RTAC Plugin (Mandatory)
+*New — established alongside RTAC's creation, August 26, 2026*
+
+All combat-specific code — grid state, tile logic, movement, damage resolution, combat UI,
+combat-specific actors/components — lives inside `ProjectAtlantis/Plugins/RTAC/`, not in the
+main project's `Source/ProjectAtlantis/` module.
+
+- This is what makes RTAC portable to a future UE5 project, per its stated purpose
+  (`RTAC.uplugin` → "portable across UE5 projects"). Code that leaks into the main module breaks
+  that portability silently — it won't fail loudly, it'll just mean RTAC doesn't actually work
+  when copied elsewhere.
+- The only things that belong in the main project relating to combat: whatever thin integration
+  is required to *invoke* RTAC (e.g., a gamemode/state flag that triggers combat start, per the
+  exploration-vs-combat mode question still open in `combat_decisions.md`), not the combat logic
+  itself.
+- `Variant_Combat/` (Epic's own template code) is exempt — it's reference material only, per
+  `CLAUDE.md`, not something this rule retroactively applies to.
+- Before adding any new combat-related source file, confirm it's going into `Plugins/RTAC/`,
+  not `Source/ProjectAtlantis/`.
+
+---
+
 # Recurring Failure Modes — checklist before writing systems or tests
 
 These are real bugs that reached "looks correct" before being caught on PRS. Each cost a
@@ -420,6 +442,7 @@ Before closing any milestone, verify each rule:
 | 8 — Independent Gating | No system's update path nested inside another system's guard condition |
 | 9 — Observability | Dedicated log category, not `LogTemp`; no per-frame diagnostic spam left in the production path |
 | 10 — Units and Domains | Grid vs. world, frames vs. seconds, elevation level vs. height, screen vs. grid — each converted at exactly one named boundary |
+| 11 — Combat Code Lives Inside RTAC | No combat logic (grid, tiles, movement, damage resolution, combat UI/actors) added under `Source/ProjectAtlantis/`; new combat source goes in `Plugins/RTAC/` |
 
 ---
 
