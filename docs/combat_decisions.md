@@ -85,6 +85,23 @@ superseding decision number is mandatory.
 
 
 
+## Decision #4 — Combat Structure: Expedition-33-Style World Engagement
+
+**Date:** August 26, 2026
+**Phase:** Combat system design (pre-implementation)
+**Author:** Omar
+**Status:** N/A — design rationale, no action implied
+
+**Decision:** Combat structure follows Clair Obscur: Expedition 33's transition philosophy. Enemies exist in the explorable world — no random encounters. Engaging an enemy transitions the player into a contained, contextual battle arena rather than an abstracted menu-only screen.
+
+**Why this matters:** This governs how the player *enters* combat, distinct from Decision #1 (which governs the camera *within* combat) and distinct from the combat mechanics themselves (Design Philosophy, MMBN3-based). The specific implementation mechanism (GameMode swap, mode flag, or otherwise) is not decided by this entry — see Open Questions → "Exploration → Combat Transition Mechanism."
+
+**Note:** This decision was implicit in the Design Philosophy section from the start of this document but was never given its own numbered entry. Logged retroactively on August 26, 2026 to bring it in line with this doc's convention that a settled design point should be a discrete, citable Decision — not left as unnumbered prose.
+
+---
+
+
+
 ## Open Questions
 
 
@@ -126,6 +143,14 @@ Brainstormed directions, none locked, to revisit once the core loop is playable:
 - Faction/enemy-specific elevation relationships — e.g. Guardian sentinels favor/punish high ground (turret-like), ambush-style enemies favor low ground — ties elevation strategy to which faction's remnants the player is fighting
 - Instability as a dimension — some high tiles risk collapse if stood on too long or hit while occupied
 - Open question raised: does a 3x6 grid provide enough spatial room for elevation to read clearly, or does it need to be zone-based (e.g. shared elevation per column/row) rather than per-tile, and/or does the grid need to grow slightly (e.g. 4x6/5x6)?
+
+
+
+### Exploration → Combat Transition Mechanism
+
+- Undecided how the player actually enters combat, mechanically. Per Decision #4, enemies exist in the explorable world and engaging one transitions into a contained arena — but the *implementation* of that transition (GameMode swap vs. a mode flag on GameState/PlayerController that swaps pawn/control scheme and streams in the arena, vs. something else) is not decided.
+- A GameMode swap is UE5's more traditional pattern but is a heavier operation (typically a level transition or substantial state teardown/rebuild) that may fight against the contextual, in-place-feeling transition Decision #4 implies.
+- Not blocking the core grid/movement work — per AGENTS.md Rule 5 (Simulation/Presentation Separation) and Rule 11 (Combat Code Lives Inside RTAC), the grid simulation doesn't know or care how combat was entered. This becomes relevant once the core loop exists and needs to actually be triggered from the explorable world.
 
 ---
 
