@@ -18,7 +18,8 @@ public class ProjectAtlantis : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-			"Slate"
+			"Slate",
+			"RTAC"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

@@ -4,8 +4,11 @@
 
 #define LOCTEXT_NAMESPACE "FRTACModule"
 
+DEFINE_LOG_CATEGORY(LogRTAC);
+
 void FRTACModule::StartupModule()
 {
+	UE_LOG(LogRTAC, Log, TEXT("RTAC module loaded."));
 }
 
 void FRTACModule::ShutdownModule()
