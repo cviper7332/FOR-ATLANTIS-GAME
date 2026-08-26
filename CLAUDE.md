@@ -46,6 +46,7 @@ FOR ATLANTIS GAME\
     ├── Automation_ProjectAtlantis.sln / .slnx
     ├── Config\                     ← DefaultEngine/Game/Input/Editor .ini
     ├── Source\ProjectAtlantis\     ← 90 C++ files, single module
+    ├── Plugins\RTAC\               ← combat plugin, scaffold only — see RTAC Plugin below
     └── Content\                    ← 718 assets (incl. 521 __External*)
 ```
 
@@ -82,6 +83,23 @@ Adding a new source subfolder requires adding it to `PublicIncludePaths` in the 
 
 ---
 
+## RTAC Plugin
+
+**Location:** `ProjectAtlantis/Plugins/RTAC/`
+**Purpose:** RTAC — realtime arena action strategic combat system: grid-based combat, built as a
+self-contained plugin so it can be dropped into future UE5 projects. See `RTAC.uplugin` for the
+canonical description.
+**Current state:** Scaffolded only — module boilerplate exists (`RTAC.Build.cs`,
+`RTACModule.h`/`.cpp`), no gameplay code yet, not yet registered as a dependency in
+`ProjectAtlantis.Build.cs`.
+**Governing rule:** Per `docs/AGENTS.md` Rule 11, all combat-specific code (grid, tiles,
+movement, damage resolution, combat UI/actors) must live inside this plugin, not in the main
+`Source/ProjectAtlantis/` module.
+**Design decisions:** See `docs/combat_decisions.md` for what's locked vs. still open regarding
+the combat system this plugin will implement.
+
+---
+
 ## Version Control
 
 **Repo:** https://github.com/cviper7332/FOR-ATLANTIS-GAME.git
@@ -102,8 +120,8 @@ Re-check the 50 MB/100 MB thresholds before committing new binary content — Co
 
 ## Safety Ruleset
 
-**Canonical: [`docs/AGENTS.md`](docs/AGENTS.md).** Ten mandatory rules — four on agent conduct
-(in force now), six on architecture (binding on combat code as it is written) — plus the
+**Canonical: [`docs/AGENTS.md`](docs/AGENTS.md).** Eleven mandatory rules — four on agent conduct
+(in force now), seven on architecture (binding on combat code as it is written) — plus the
 Recurring Failure Modes checklist and the audit table.
 
 Read it before any work. Read the Recurring Failure Modes section specifically before writing
