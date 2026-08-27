@@ -102,6 +102,23 @@ superseding decision number is mandatory.
 
 
 
+## Decision #5 — Grid Axis-Order Convention: Rows×Columns
+
+**Date:** August 26, 2026
+**Phase:** Combat system design (pre-implementation)
+**Author:** Omar
+**Status:** N/A — design rationale, no action implied
+
+**Decision:** Grid dimensions are stated and coded as rows×columns (matrix/array convention — an m×n grid has m rows, n columns), matching standard 2D array indexing (`grid[row][col]`). BN3's actual battle grid is 3 rows tall by 6 columns wide (3 columns per side) — verified against multiple sources (Wikibooks combat guide, community strategy analysis, in-game mechanics descriptions of row-based targeting) rather than assumed from memory. "3x6" as already used throughout this doc is accurate under this convention and requires no correction.
+
+**Why this matters:** "3x6" and "6x3" both correctly describe the same physical board depending on which number-order convention is used — this is not a contradiction between sources, just an unstated convention that could silently drift into inconsistent code (tile addressing, array bounds, loop order) if never pinned down explicitly. Screen/display resolution conventions (width×height) go the opposite direction from matrix convention and are a common source of this exact class of bug — worth naming so nobody imports that convention here by habit.
+
+**Note:** This does not itself decide RTAC's final grid dimensions (still an Open Question — see "Core BN3 Loop") — only the axis-order convention to express whatever dimensions are eventually chosen.
+
+---
+
+
+
 ## Open Questions
 
 
