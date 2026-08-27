@@ -113,7 +113,7 @@ superseding decision number is mandatory.
 
 **Why this matters:** "3x6" and "6x3" both correctly describe the same physical board depending on which number-order convention is used — this is not a contradiction between sources, just an unstated convention that could silently drift into inconsistent code (tile addressing, array bounds, loop order) if never pinned down explicitly. Screen/display resolution conventions (width×height) go the opposite direction from matrix convention and are a common source of this exact class of bug — worth naming so nobody imports that convention here by habit.
 
-**Note:** This does not itself decide RTAC's final grid dimensions (still an Open Question — see "Core BN3 Loop") — only the axis-order convention to express whatever dimensions are eventually chosen.
+**Note:** This does not itself decide RTAC (realtime arena action strategic combat system)'s final grid dimensions (still an Open Question — see "Core BN3 Loop") — only the axis-order convention to express whatever dimensions are eventually chosen.
 
 ---
 
