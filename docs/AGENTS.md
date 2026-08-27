@@ -213,6 +213,20 @@ Failure Modes 3–5 checkable at all.
 direction. Combat must not read faction belief state; PHIS must not consume combat outcomes.
 Introducing one requires a new decision entry, not a convenient include.
 
+**Addendum, August 26, 2026:** the phrase "expressible and testable without a running engine"
+above conflates two separate requirements, and only the first applies to this project.
+**Expressible without engine types stands unchanged** — no `AActor*`, no `UObject*`, no
+`FVector` in the rules layer, POD and standard containers only, exactly as the bullets above
+describe. **Testable without a running engine does not.** That half was inherited from PRS,
+where a standalone non-UE5 build was a genuine project goal — PRSCore is engine-agnostic by
+design and CI-gated on compiling with no Unreal headers. RTAC has no such goal: its
+portability target is "across UE5 projects," not away from UE5 (see `RTAC.uplugin`). Going
+forward, simulation code may be compiled and tested through UE5's own tooling — UE Automation
+Tests, running inside the editor — and a separate engine-agnostic build system is neither
+required nor to be built. The **Why** paragraph above is unaffected: its actual concern is that
+combat not be exercisable *only* by launching PIE and playing it by hand, and an
+automation-test suite satisfies that fully. Caught during `PHASES.md` drafting.
+
 ---
 
 ### Rule 6 — Explicit State Ownership and Determinism (Mandatory)
