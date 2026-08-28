@@ -155,6 +155,29 @@ superseding decision number is mandatory.
 
 
 
+## Decision #8 — Grid Dimensions: 3 Rows × 6 Columns (Configurable, Default)
+
+**Date:** August 26, 2026
+**Phase:** Combat system design (pre-implementation)
+**Author:** Omar
+**Status:** OPEN
+
+**Decision:** The combat grid defaults to **3 rows × 6 columns**, matching BN3's actual board exactly (per Decision #5's rows×columns convention). Dimensions are **not** a compile-time constant — rows and columns are configurable, exposed to the level author for editing in the UE5 Editor's Details panel, with 3×6 as the shipped default value.
+
+**Architecture — this does not create tension with Rule 5.** The editable-in-editor requirement is satisfied entirely on the presentation side, not by relaxing the simulation boundary:
+
+- The simulation-layer grid type takes rows and columns as **plain integer parameters** (constructor or init call) — no engine dependency, no `UPROPERTY`, nothing Rule 5 would object to. The struct itself has no idea an editor exists.
+- A thin presentation-layer wrapper — an actor or component, exactly where `UPROPERTY(EditAnywhere)` and engine types belong per Rule 5's own separation — exposes `Rows`/`Columns` as editable integer properties defaulting to 3/6, and passes them into the simulation at init time.
+- This is stated explicitly so it reads as the separation being **used as designed**, not as an exception carved out for it. Rule 5 already draws exactly this boundary (simulation owns state and rules; presentation owns everything engine-facing, including where editor-exposed properties live) — configurable dimensions are simply the first concrete case that exercises it.
+
+**Why this matters:** "Exact grid dimensions" has sat as an open question since the Design Philosophy section was written, explicitly deferred until the core loop needed a real number to build against (Open Questions → Core BN3 Loop). Locking the *default* to BN3's own board removes the guesswork the open question raised, while making it editor-configurable — rather than a hardcoded constant — keeps the door open for the "does 3×6 give elevation enough room to read clearly, or does the grid need to grow slightly (4×6/5×6)?" question already logged under Open Questions → Elevation — Mechanical Direction, without requiring a second decision or a code change to test that later.
+
+**Note:** This satisfies Phase 1's Definition of Done item ("Grid dimensions chosen and logged as their own Decision entry, stated as rows×columns per Decision #5") in `PHASES.md` — this entry is that "own Decision entry," and its dimensions are expressed as rows×columns per Decision #5's convention as required.
+
+---
+
+
+
 ## Open Questions
 
 
