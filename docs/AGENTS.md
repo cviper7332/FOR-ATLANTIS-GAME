@@ -181,6 +181,95 @@ only inside a Bash tool's IN/OUT transcript.
 
 ---
 
+### Rule 13 — Verify the Current Date Before Writing Any Dated Content (Mandatory)
+*New — established August 28, 2026, after seven dated entries were written carrying a date reused
+from earlier in the conversation rather than checked.*
+*Numbered 13 and placed in Part I for the same reason Rule 12 was: it is a conduct rule about
+documentation accuracy, not an architecture rule. Rules 1–4, 12, and 13 are Conduct; Rules 5–11
+are Architecture. The gap in sequence is intentional, not an error.*
+
+Before writing any date-bearing content, **check the actual current system date**. Do not reuse a
+date from earlier in the same session, conversation, or task.
+
+This covers every dated thing this project writes:
+
+- A Decision entry's `**Date:**` field.
+- A Rule addendum's date, and a new Rule's "established" date.
+- A `**Caught:**` entry's date.
+- `Last Updated` lines in `CLAUDE.md`, `PHASES.md`, and elsewhere.
+- Any date named in a commit message.
+
+- **Check it, don't infer it.** A working session can span midnight or several days; the
+  conversation is not a clock, and neither is the date of the last thing that was written.
+- **Relative phrasing inherits the error.** "Same date," "today," "as of this session" copy
+  whatever the referenced entry says — if that date was wrong, the reference propagates it
+  silently and the error compounds.
+- **Correcting a date already committed follows Rule 4.** Append a dated addendum recording the
+  correction; do not silently edit the original `**Date:**` line.
+
+**Why this matters:** dates in this project are load-bearing, not decorative. Decision entries are
+cited by number and date, addenda establish sequence between one another, and `PHASES.md` gates
+record when a block cleared. A wrong date corrupts exactly the audit trail Rules 2 and 4 exist to
+protect — and it does so invisibly, because nothing about a plausible-looking date reads as wrong
+on the page.
+
+**Caught (August 28, 2026):** seven dated entries were written on August 27 and August 28 but
+labeled "August 26, 2026," because that date was carried forward from earlier in the same
+conversation without being re-checked. Affected: Rule 5 Addendum #2, Decision #6, and Decision #7
+(written August 27, commit `10b88d7`); Rule 5 Addendum #3 and Decision #8 (written August 28,
+commits `a6d34fb` and `ad1fe4b`); plus their downstream references in `CLAUDE.md` and
+`PHASES.md`. One compounding case: Addendum #3's closing line reads *"…during the
+`FRTACGridPosition` type-swap task, same date"* — inheriting an already-wrong date from the entry
+it referenced, propagating the error a second time inside a single entry. None of it surfaced
+until the date was checked directly against the system clock rather than assumed.
+
+---
+
+### Rule 14 — A Phase Goal Must Fully Describe Its Definition of Done (Mandatory)
+*New — established August 28, 2026, after a phase Goal was found to describe only part of what its
+own Definition of Done required.*
+*Numbered 14 and placed in Part I for the same reason Rules 12 and 13 were: it is a conduct rule
+about documentation accuracy, not an architecture rule. Rules 1–4, 12, 13, and 14 are Conduct;
+Rules 5–11 are Architecture. The gap in sequence is intentional, not an error.*
+
+A phase's **Goal** section in `docs/PHASES.md` must be a complete articulation of what satisfying
+**every** item in that phase's Definition of Done would actually deliver. It is not a headline, a
+theme, or an evocative one-liner capturing the phase's spirit.
+
+- **The Definition of Done is the source of truth for what a phase delivers.** The Goal must be
+  faithful to it in full, not merely in spirit.
+- If the DoD checks for something the Goal does not mention, **the Goal is incomplete and must be
+  rewritten to include it** — never the reverse. Trimming a DoD item to match an appealing Goal
+  sentence inverts the dependency and is a scope reduction disguised as an edit.
+- This binds in both directions at every Phase Exit Review: adding a DoD item requires re-reading
+  that phase's Goal and extending it if the new item isn't already represented.
+- Brevity is not the standard; completeness is. A Goal that needs three paragraphs to cover its
+  DoD gets three paragraphs.
+- The Goal remains prose. Representing every requirement does not mean restating the DoD as a
+  bulleted list in sentence form — it means a reader who reads only the Goal is not misled about
+  what the phase demands.
+
+**Why this matters:** the Goal is what a reader — human or agent — reads first, and often the only
+part read when judging whether a phase is close to done. A Goal that omits DoD requirements lets a
+reader believe less is required than actually is. That is the same failure shape the Recurring
+Failure Modes section already warns about generally: a confident, fluent statement that is silently
+incomplete on specifics, where the incompleteness is invisible *precisely because the statement
+reads well* (Failure Mode 8). It also creates the drift Failure Mode 7 describes — two descriptions
+of one quantity, inside one document, free to diverge.
+
+**Caught (August 28, 2026):** Phase 1's Goal read *"The board exists and entities move on it,
+provably, with no renderer involved at all."* Its Definition of Done additionally required
+determinism under a fixed seed (Rule 6), movement resolving through the simulation layer with no
+presentation coupling in either direction (Rule 5), a surface-modifier slot and a mechanically
+inert elevation slot on the tile model, confirmed absence of any grid↔world unit conversion
+(Rule 10), and tests on a full multi-entity grid rather than a degenerate board (Failure Mode 5).
+None of these appeared in the Goal. A reader taking that Goal at face value would have judged the
+phase complete once entities moved on a board — with no determinism guarantee, no verified layer
+isolation, and no reserved elevation slot, whose absence Rule 8's own "Concrete risk here" note
+warns violates that rule *in advance*.
+
+---
+
 # Part II — Architecture Rules (bind combat code as it is written)
 
 ### Rule 5 — Simulation / Presentation Separation (Mandatory)
@@ -259,6 +348,19 @@ aside. This addendum narrows the bullet only — Decision #1/#3's role in this r
   boundary — `FIntPoint` remains correct for a grid coordinate, `FVector` remains wrong for one,
   for an entirely different reason than "it's an engine type."
 
+**Addendum, August 28, 2026 (date correction):** This entry ("Addendum #2") is labeled "August 26,
+2026" above. That date is incorrect. Addendum #2 was actually written and committed
+**August 27, 2026**, per commit `10b88d7` (2026-08-27 20:04) — one day after the label states. The
+original heading is left unchanged per Rule 4 (append, don't rewrite) and per Rule 13's own
+guidance on correcting committed dates; this addendum records the correction rather than editing
+the `Addendum #2, August 26, 2026:` line above.
+
+Also note: Decision #6 (`combat_decisions.md`) references this addendum as *"Rule 5's second
+addendum, same date"* — meaning the same date as Decision #6 itself. Decision #6 was written in
+the same commit as this addendum (`10b88d7`), so despite both dates being mislabeled August 26,
+the relative claim "same date" turns out to be true once both are corrected to August 27 — see
+Decision #6's own correction addendum.
+
 **Addendum #3, August 26, 2026:** Addendum #2's closing line — *"`FIntPoint` remains correct for
 a grid coordinate"* — is still true as a general permission under this rule, and nothing about it
 was wrong. Nothing below narrows that permission project-wide.
@@ -282,6 +384,23 @@ saying so; naming the fields `Row`/`Column` makes it unmisreadable by constructi
   that case was deliberately superseded by `FRTACGridPosition`.
 
 Caught by the implementer (CC/Opus) during the `FRTACGridPosition` type-swap task, same date.
+
+**Addendum, August 28, 2026 (date correction):** This entry ("Addendum #3") is labeled
+"August 26, 2026" above. That date is incorrect. Addendum #3 was actually written and committed
+**August 28, 2026**, per commit `a6d34fb` (2026-08-28 10:56). The original heading is left
+unchanged per Rule 4; this addendum records the correction.
+
+This also resolves Addendum #3's closing line above — *"Caught by the implementer (CC/Opus)
+during the `FRTACGridPosition` type-swap task, same date"* — since "same date" is defined
+relative to this addendum's own header. As originally written (header: August 26), the phrase
+pointed to the wrong day. Reasoned through rather than assumed either way: the type-swap task and
+this addendum's drafting genuinely both occurred **August 28, 2026**, per the same commit
+(`a6d34fb`). Once the header is read as corrected, "same date" is not left with a separate error
+to fix — it resolves correctly by the same mechanism that fixes the header, and by coincidence of
+the two events having actually happened on the same real day. Recorded explicitly here rather
+than left implicit, since Rule 13 specifically warns that relative phrasing silently inherits
+whatever error its anchor carries — leaving this unstated would repeat that exact failure shape
+one level removed.
 
 ---
 
@@ -538,6 +657,8 @@ Before closing any milestone, verify each rule:
 | 10 — Units and Domains | Grid vs. world, frames vs. seconds, elevation level vs. height, screen vs. grid — each converted at exactly one named boundary |
 | 11 — Combat Code Lives Inside RTAC | No combat logic (grid, tiles, movement, damage resolution, combat UI/actors) added under `Source/ProjectAtlantis/`; new combat source goes in `Plugins/RTAC/` |
 | 12 — Diffs Shown as Their Own Block | Every diff presented for review before a commit/overwrite/destructive action was printed as its own visible block in the reply, not left only inside Bash tool output |
+| 13 — Verify Date Before Dated Content | Every dated entry written this milestone had its date checked against the system clock, not carried over from earlier in the conversation |
+| 14 — Goal Describes Its Full DoD | Every phase's Goal section accounts for every item in that phase's Definition of Done; no DoD requirement is absent from the Goal that describes it |
 
 ---
 

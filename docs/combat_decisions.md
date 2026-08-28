@@ -132,6 +132,10 @@ superseding decision number is mandatory.
 
 **Note:** This does not relax the underlying rule — no `UObject*`/`AActor*` ownership in simulation state is still mandatory, per Rule 5. It changes only how compliance is verified: reviewed at each Phase Exit, not compiled or linted automatically.
 
+**Addendum, August 28, 2026 (date correction):** This entry's `**Date:**` field above reads "August 26, 2026." That date is incorrect. Decision #6 was actually written and committed **August 27, 2026**, per commit `10b88d7` (2026-08-27 20:04). The original `**Date:**` field is left unchanged per Rule 4 (append, don't rewrite); this addendum records the correction.
+
+This also resolves the "Why this matters" paragraph's internal reference to *"Rule 5's second addendum, same date"* — meaning the same date as this Decision. As originally written (this entry's date: August 26), that phrase pointed to the wrong day. Rule 5's Addendum #2 was written in the same commit as this Decision (`10b88d7`), so once both are corrected, "same date" resolves correctly: both were genuinely written August 27, 2026.
+
 ---
 
 
@@ -150,6 +154,8 @@ superseding decision number is mandatory.
 **Secondary, corroborating note:** this floor is also consistent with, though not driven by, this project's own documented API churn — `BL_BeforeTonemapping` was removed in UE 5.5+ (`CLAUDE.md` → UE5.8 API Gotchas), so 5.8 sits safely above that break. This is not the reason for the floor and should not be cited as if it were.
 
 **Note:** This ruling says nothing about what engine version a consumer project (one RTAC is dropped into, per its stated portability goal) requires — that is a property of RTAC's own code, not of this project's development workflow, and remains open until tested (Phase 8).
+
+**Addendum, August 28, 2026 (date correction):** This entry's `**Date:**` field above reads "August 26, 2026." That date is incorrect. Decision #7 was actually written and committed **August 27, 2026**, per commit `10b88d7` (2026-08-27 20:04), the same commit as Decision #6 and Rule 5 Addendum #2. The original `**Date:**` field is left unchanged per Rule 4; this addendum records the correction. No internal reference within this entry restates another entry's date, so no further correction is needed here.
 
 ---
 
@@ -173,6 +179,8 @@ superseding decision number is mandatory.
 **Why this matters:** "Exact grid dimensions" has sat as an open question since the Design Philosophy section was written, explicitly deferred until the core loop needed a real number to build against (Open Questions → Core BN3 Loop). Locking the *default* to BN3's own board removes the guesswork the open question raised, while making it editor-configurable — rather than a hardcoded constant — keeps the door open for the "does 3×6 give elevation enough room to read clearly, or does the grid need to grow slightly (4×6/5×6)?" question already logged under Open Questions → Elevation — Mechanical Direction, without requiring a second decision or a code change to test that later.
 
 **Note:** This satisfies Phase 1's Definition of Done item ("Grid dimensions chosen and logged as their own Decision entry, stated as rows×columns per Decision #5") in `PHASES.md` — this entry is that "own Decision entry," and its dimensions are expressed as rows×columns per Decision #5's convention as required.
+
+**Addendum, August 28, 2026 (date correction):** This entry's `**Date:**` field above reads "August 26, 2026." That date is incorrect. Decision #8 was actually written and committed **August 28, 2026**, per commit `ad1fe4b` (2026-08-28 10:07). The original `**Date:**` field is left unchanged per Rule 4; this addendum records the correction. No internal reference within this entry restates another entry's date.
 
 ---
 

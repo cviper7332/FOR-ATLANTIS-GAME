@@ -44,7 +44,7 @@ resolution effect) is not acceptable.
 | Phase | Description | Status |
 |---|---|---|
 | 0 | Foundation & Test Harness | `PARTIAL — plugin scaffold live; automation test harness OUTSTANDING` |
-| 1 | Grid & Movement (Headless Simulation) | `OPEN` |
+| 1 | Grid & Movement (Headless Simulation) | `PARTIAL — grid and tile types written, dimensions locked (Decision #8); OUTSTANDING: movement, entities, determinism and multi-entity tests` |
 | 2 | Presentation & First Playable Board | `OPEN` |
 | 3 | Attacks, HP/Damage & Tile Modifiers | `OPEN` |
 | 4 | Enemies & AI | `OPEN` |
@@ -75,8 +75,9 @@ ruleset is enforceable) adapted to this project's actual architecture.
 ## Test Harness
 
 Simulation code is compiled and tested via **UE Automation Tests, running inside the editor**.
-There is no standalone non-UE5 build and none is to be created — settled by Rule 5's August 26,
-2026 addendum, which corrected the rule's original "testable without a running engine" phrasing.
+There is no standalone non-UE5 build and none is to be created — settled by Rule 5's first
+August 26, 2026 addendum (unnumbered in `AGENTS.md`; it immediately precedes Addendum #2), which
+corrected the rule's original "testable without a running engine" phrasing.
 That phrasing was inherited from PRS, where a standalone engine-agnostic build was a genuine
 project goal (PRSCore compiles with zero Unreal headers, CI-gated). RTAC's portability target is
 "across UE5 projects," not away from UE5 (`RTAC.uplugin`), so no equivalent goal applies here.
@@ -91,11 +92,16 @@ Review instead.
 ## Definition of Done
 
 **Part A — verifiable without a live editor session**
-- [x] `RTAC.uplugin`, `RTAC.Build.cs`, `RTACModule.h/.cpp` exist and compile
+- [x] `RTAC.uplugin`, `RTAC.Build.cs`, `RTACModule.h/.cpp` exist and compile — confirmed by the
+      August 26, 2026 build that produced `Binaries/Win64/UnrealEditor-RTAC.dll`
+- [ ] The `Simulation/` tree compiles — written August 28, 2026 and **never built**. The linked
+      DLL predates every file under `Source/RTAC/*/Simulation/`, so no compile claim covers them
+      (`CLAUDE.md` → build verification). Omar triggers the build.
 - [x] `RTAC` registered in `ProjectAtlantis.Build.cs`'s `PublicDependencyModuleNames`
 - [ ] A simulation subtree exists holding plain structs and UE Core value types only
-      (`FIntPoint`, `TArray`, `TMap`, `FString`, etc. — permitted and preferred per Rule 5's
-      second addendum); no `UObject*`/`AActor*` **ownership** in simulation state
+      (`TArray`, `TMap`, `FString`, etc. — permitted and preferred per Rule 5 Addendum #2);
+      no `UObject*`/`AActor*` **ownership** in simulation state. `FIntPoint` remains permitted
+      generally, but grid positions specifically use `FRTACGridPosition` per Rule 5 Addendum #3.
 - [ ] Simulation state lives in an explicit state struct with no hidden globals or statics,
       per Rule 6
 - [ ] Dedicated log category in use (`LogRTAC` — already confirmed working), not `LogTemp`,
@@ -112,17 +118,38 @@ Review instead.
 
 ## Exit
 
-Rules 5, 6, 9, and 11 reviewed against the current scaffold and accepted.
+Rules 5, 6, 9, and 11 reviewed against the current simulation code and accepted.
 
 ---
 
 # Phase 1 — Grid & Movement (Headless Simulation)
 
-**Status:** `OPEN`
+**Status:** `PARTIAL — grid and tile types written, dimensions locked (Decision #8); OUTSTANDING: movement, entities, determinism and multi-entity tests`
 
 ## Goal
 
-The board exists and entities move on it, provably, with no renderer involved at all.
+By the end of this phase the combat board exists as a real, addressable data structure and
+entities move on it — entirely headlessly, with no renderer, no actor, and no editor involved at
+any point.
+
+The board is a grid of deliberately chosen dimensions, logged as its own Decision entry and stated
+rows×columns per Decision #5. Its tiles are plain structs built from UE Core value types, holding
+no `UObject*`/`AActor*` ownership, and every tile carries both a surface-modifier slot and an
+elevation slot that exists in the data model while remaining mechanically inert — reserved now so
+Phase 6 can add elevation without retrofitting it as a nested branch inside logic that never
+anticipated it (Rule 8).
+
+Movement resolves through the simulation layer and nowhere else: no presentation layer reads
+simulation state, and the simulation carries no dependency in the other direction. Grid
+coordinates stay grid coordinates throughout — no grid↔world unit conversion exists anywhere in
+this phase's code, and that absence is positively confirmed rather than assumed, since there is no
+presentation layer yet to own that boundary (Rule 10).
+
+All of it is deterministic and demonstrably so: the same seed and the same input sequence produce
+an identical resulting state, verified by a test rather than asserted in prose (Rule 6). Those
+tests exercise the full configured grid with multiple entities — never a 1×1 board or a
+single-entity setup, either of which would collapse the very behaviour under test
+(Failure Mode 5).
 
 ## Resolves
 
@@ -135,8 +162,10 @@ The board exists and entities move on it, provably, with no renderer involved at
 
 - [ ] Grid dimensions chosen and logged as their own Decision entry, stated as rows×columns
       per Decision #5
-- [ ] Simulation types hold POD/standard containers only — no engine types (Rule 5); grid
-      coordinates are grid coordinates, not world transforms
+- [ ] Simulation types hold plain structs and UE Core value types (`TArray`, `TMap`, `FString`,
+      etc. — permitted and preferred per Rule 5 Addendum #2); no `UObject*`/`AActor*`
+      **ownership** in simulation state; grid coordinates are grid coordinates, not world
+      transforms
 - [ ] Movement resolves through the simulation layer only; no presentation-layer read of
       simulation state and no reverse dependency (Rule 5)
 - [ ] The tile model carries a surface-modifier slot and an **elevation slot that exists but is

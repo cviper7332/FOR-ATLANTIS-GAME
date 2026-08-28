@@ -127,14 +127,14 @@ Re-check the 50 MB/100 MB thresholds before committing new binary content — Co
 
 ## Safety Ruleset
 
-**Canonical: [`docs/AGENTS.md`](docs/AGENTS.md).** Eleven mandatory rules — four on agent conduct
+**Canonical: [`docs/AGENTS.md`](docs/AGENTS.md).** Fourteen mandatory rules — seven on agent conduct
 (in force now), seven on architecture (binding on combat code as it is written) — plus the
 Recurring Failure Modes checklist and the audit table.
 
 Read it before any work. Read the Recurring Failure Modes section specifically before writing
 any combat system, any balance constant, or any test oracle.
 
-The four conduct rules in force today:
+The seven conduct rules in force today:
 
 | Rule | Short form |
 |---|---|
@@ -142,6 +142,15 @@ The four conduct rules in force today:
 | 2 — Live-Document Verification | Never state project/decision status without reading the governing file live, in that turn. A prior AI's claim is not a substitute. |
 | 3 — No Undo | No version control exists. Confirm before any deletion, overwrite, or bulk edit. |
 | 4 — Append, Don't Rewrite | Decision-log entries are never silently edited — corrections are dated addenda. |
+| 12 — Diffs Shown as Their Own Block | Any diff presented for review is printed as its own visible block in the reply, not left only inside Bash tool output. |
+| 13 — Verify Date Before Dated Content | Check the actual system date before writing anything dated. Never reuse a date from earlier in the session. |
+| 14 — Goal Describes Its Full DoD | A phase's Goal section must cover every item in that phase's Definition of Done — not just the headline, the whole thing. |
+
+**Rule 13 covers this file's own dated content.** Before updating either `Last Updated` line (top
+of Session Context, and the footer), or adding any dated note anywhere in `CLAUDE.md`, check the
+current date against the system clock rather than carrying one forward from earlier in the
+session. See `docs/AGENTS.md` Rule 13 for the August 28, 2026 incident that established it —
+seven entries were mislabeled exactly this way before anyone checked.
 
 ---
 
