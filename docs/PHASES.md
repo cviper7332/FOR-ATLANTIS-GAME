@@ -43,7 +43,7 @@ resolution effect) is not acceptable.
 
 | Phase | Description | Status |
 |---|---|---|
-| 0 | Foundation & Rule 5 Enforceability | `PARTIAL — plugin scaffold live; test harness enforcement OUTSTANDING` |
+| 0 | Foundation & Test Harness | `PARTIAL — plugin scaffold live; automation test harness OUTSTANDING` |
 | 1 | Grid & Movement (Headless Simulation) | `OPEN` |
 | 2 | Presentation & First Playable Board | `OPEN` |
 | 3 | Attacks, HP/Damage & Tile Modifiers | `OPEN` |
@@ -56,9 +56,15 @@ resolution effect) is not acceptable.
 
 ---
 
-# Phase 0 — Foundation & Rule 5 Enforceability
+# Phase 0 — Foundation & Test Harness
 
-**Status:** `PARTIAL — plugin scaffold live; test harness enforcement OUTSTANDING`
+**Status:** `PARTIAL — plugin scaffold live; automation test harness OUTSTANDING`
+
+## Prerequisite
+
+**Development on this phase — and the project generally — requires UE 5.8.** Per Decision #7,
+this project's workflow depends on MCP editor introspection, a UE 5.8 Experimental feature
+absent from 5.6/5.7. Confirm the editor in use is 5.8 before starting any Part B item below.
 
 ## Goal
 
@@ -78,41 +84,24 @@ project goal (PRSCore compiles with zero Unreal headers, CI-gated). RTAC's porta
 Tests live inside the plugin per Rule 11 (`Plugins/RTAC/Source/…`), never in
 `Source/ProjectAtlantis/`.
 
-## ⚠ Open Sub-Item — Enforcement of the "No Engine Types" Half
-
-**Genuinely undecided. Not to be marked resolved or silently defaulted to one of the candidates
-below.** Rule 5's addendum removed the standalone-build requirement, but that build was also
-doing enforcement work for the half of the rule that *does* still stand — no `AActor*`,
-`UObject*`, or `FVector` in the simulation layer. On PRS, the CMake build failed outright if an
-Unreal header appeared in PRSCore; that check doesn't exist here yet, and UE Automation Tests
-give no equivalent guarantee — nothing stops an engine type compiling cleanly into the rules
-layer.
-
-Candidates, none selected:
-
-- **A second UBT module inside the plugin** (e.g. `RTACSim`) with a deliberately narrow
-  dependency list, so UBT itself rejects engine-type creep. **Verified caveat:** `FVector`
-  resolves to `UE::Math::TVector`, defined in `Runtime/Core/Public/Math/Vector.h` — i.e. inside
-  the `Core` module. A `Core`-only dependency list does not by itself exclude `FVector`; the
-  exact dependency list needs deciding, not assuming.
-- **A grep/lint gate** over the simulation subtree, run as part of the Phase Exit Review.
-- **Review-only**, accepting the rule as convention-enforced rather than machine-enforced.
-
-This needs its own Decision entry before Phase 0 can close.
+**"No engine types" enforcement is review-only, not machine-enforced** — see Decision #6. No
+second UBT module and no grep/lint gate will be built; compliance is checked at each Phase Exit
+Review instead.
 
 ## Definition of Done
 
 **Part A — verifiable without a live editor session**
 - [x] `RTAC.uplugin`, `RTAC.Build.cs`, `RTACModule.h/.cpp` exist and compile
 - [x] `RTAC` registered in `ProjectAtlantis.Build.cs`'s `PublicDependencyModuleNames`
-- [ ] A simulation subtree exists containing no `AActor*`, `UObject*`, or `FVector` (Rule 5)
-- [ ] Enforcement mechanism for the above decided and logged as a `combat_decisions.md` entry
+- [ ] A simulation subtree exists holding plain structs and UE Core value types only
+      (`FIntPoint`, `TArray`, `TMap`, `FString`, etc. — permitted and preferred per Rule 5's
+      second addendum); no `UObject*`/`AActor*` **ownership** in simulation state
 - [ ] Simulation state lives in an explicit state struct with no hidden globals or statics,
       per Rule 6
 - [ ] Dedicated log category in use (`LogRTAC` — already confirmed working), not `LogTemp`,
       per Rule 9
 
-**Part B — requires UE5 open**
+**Part B — requires UE5.8 open**
 - [x] Plugin loads in-editor; `LogRTAC: RTAC module loaded.` confirmed via
       `EditorToolset.LogsToolset` and on disk
 - [ ] At least one UE Automation Test exists, is discoverable from the editor's Session
@@ -123,9 +112,7 @@ This needs its own Decision entry before Phase 0 can close.
 
 ## Exit
 
-Rules 5, 6, 9, and 11 reviewed against the current scaffold and accepted. **Phase 1 may not
-begin until the enforcement sub-item above is decided** — without it, Rule 5's surviving half
-has no teeth.
+Rules 5, 6, 9, and 11 reviewed against the current scaffold and accepted.
 
 ---
 
@@ -402,6 +389,13 @@ verifies — RTAC's actual portability claim is tested, not assumed.
       `ProjectAtlantis` references of any kind. This is the falsifiable test of the plugin's
       entire stated reason for existing (`RTAC.uplugin` → "portable across UE5 projects") and the
       direct analogue of PRS Phase 3's zero-structural-change sensor-abstraction test.
+- [ ] **Consumer engine floor — explicitly undetermined until tested.** This project's own UE
+      5.8 requirement (Decision #7) is a *development*-workflow constraint (MCP editor
+      introspection) and does not apply to consumers of the plugin — a project dropping RTAC in
+      never needs MCP. Whether RTAC's own code compiles against an older engine (5.6, 5.7) is a
+      property of RTAC's code, not decided by Decision #7, and is not yet known. Determine this
+      by an actual build against a candidate version — both 5.6 and 5.7 are installed and
+      available for this test — rather than assuming a number.
 - [ ] No `ProjectAtlantis`-only dependency has silently crept into `Plugins/RTAC/` since Phase 0
       (Rule 11 re-verified, not assumed to have held)
 

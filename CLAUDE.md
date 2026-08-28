@@ -3,11 +3,17 @@
 ## Session Context
 **Last Updated:** August 26, 2026
 **Engine:** Unreal Engine 5.8 (`EngineAssociation: "5.8"`, `IncludeOrderVersion: Unreal5_8`, RHI: DX12)
+**Development floor:** UE 5.8, hard requirement — not an API-compatibility choice but an
+agent-workflow dependency: CC/CC-Opus's live editor introspection (MCP) is a 5.8 Experimental
+feature, confirmed absent from 5.6 and 5.7 on this machine. See `docs/combat_decisions.md`
+Decision #7. RTAC's own *consumer* portability floor (what a project dropping RTAC in requires)
+is separate and still undetermined — see `docs/PHASES.md` Phase 8.
 **Phase:** Combat system design (pre-implementation). No combat code written yet.
 
 **Current state:** The project is still the stock UE5 Third Person template plus its three
 official variants (Combat / Platforming / SideScrolling), unmodified. All design work to date
-lives in `docs/combat_decisions.md` — Decisions #1–#3, two of them `OPEN`.
+lives in `docs/combat_decisions.md` — Decisions #1–#7, two of them `OPEN` (#1, #3), the
+remaining five `N/A — design rationale, no action implied` (#2, #4, #5, #6, #7).
 
 **Next milestone:** Build a faithful BN3-style combat core first and get it fully playable.
 Atlantis-specific modifications (starting with elevation, Decision #3) are layered on **after**,

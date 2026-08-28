@@ -119,6 +119,42 @@ superseding decision number is mandatory.
 
 
 
+## Decision #6 — Rule 5's "No Engine Types" Enforcement: Review-Only, Not Machine-Enforced
+
+**Date:** August 26, 2026
+**Phase:** Combat system design (pre-implementation)
+**Author:** Omar
+**Status:** N/A — design rationale, no action implied
+
+**Decision:** Rule 5's requirement that simulation state hold no `AActor*`/`UObject*` ownership is enforced by code review and the Phase Exit Review checklist, not by a machine-enforced mechanism. Neither of the two mechanical options considered — a second, narrow-dependency UBT module (`RTACSim`) or a grep/lint gate over the simulation subtree — will be built.
+
+**Why this matters:** Both candidate mechanisms were evaluated as mechanical proxies for the same goal: engine-independence enforcement, modeled on PRS's CI-gated standalone build (PRSCore compiles with zero Unreal headers, checked by CI). That goal was dropped from Rule 5 in two stages — first the "testable without a running engine" half (Rule 5's August 26, 2026 addendum), then the blanket engine-type ban itself, narrowed to actor-lifecycle ownership specifically (Rule 5's second addendum, same date). Once the goal both mechanisms existed to serve is gone, building either is machinery solving a problem this project no longer has — not a case of the options being bad in isolation.
+
+**Note:** This does not relax the underlying rule — no `UObject*`/`AActor*` ownership in simulation state is still mandatory, per Rule 5. It changes only how compliance is verified: reviewed at each Phase Exit, not compiled or linted automatically.
+
+---
+
+
+
+## Decision #7 — Development Engine Floor: UE 5.8, Hard Requirement
+
+**Date:** August 26, 2026
+**Phase:** Combat system design (pre-implementation)
+**Author:** Omar
+**Status:** N/A — design rationale, no action implied
+
+**Decision:** Development on this project below UE 5.8 is not supported. This is a floor on the *development environment*, distinct from and not to be conflated with RTAC's *consumer* portability floor (still undetermined — see `PHASES.md` Phase 8's portability test).
+
+**Why this matters:** The binding reason is not API stability — it is that this project's development workflow depends on live MCP (Model Context Protocol) connectivity into a running editor session (CC/CC-Opus reading the output log, inspecting editor state, and helping build/verify automation tests), and MCP is provided by UE 5.8's built-in Experimental `ModelContextProtocol` plugin. Verified directly against the local engine installs on this machine: the plugin is present under UE 5.8's `Engine/Plugins/Experimental/`. UE 5.7's install here is complete (includes `Source/`, not just binaries) and shows a clean absence of the plugin anywhere in its `Plugins` tree — the stronger data point. UE 5.6's install here is partial (only `Binaries/Intermediate/Plugins/Programs` present, no `Source/`), so its absence is weaker, corroborating evidence rather than equally strong proof. Below 5.8, this connectivity does not degrade — it does not exist, and CC loses the ability to verify anything live in the editor at all. Phase 0's Part B Definition of Done items (`PHASES.md`) already depend on this capability implicitly; this decision makes the dependency explicit.
+
+**Secondary, corroborating note:** this floor is also consistent with, though not driven by, this project's own documented API churn — `BL_BeforeTonemapping` was removed in UE 5.5+ (`CLAUDE.md` → UE5.8 API Gotchas), so 5.8 sits safely above that break. This is not the reason for the floor and should not be cited as if it were.
+
+**Note:** This ruling says nothing about what engine version a consumer project (one RTAC is dropped into, per its stated portability goal) requires — that is a property of RTAC's own code, not of this project's development workflow, and remains open until tested (Phase 8).
+
+---
+
+
+
 ## Open Questions
 
 

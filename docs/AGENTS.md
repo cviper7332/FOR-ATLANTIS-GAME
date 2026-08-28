@@ -228,6 +228,37 @@ required nor to be built. The **Why** paragraph above is unaffected: its actual 
 combat not be exercisable *only* by launching PIE and playing it by hand, and an
 automation-test suite satisfies that fully. Caught during `PHASES.md` drafting.
 
+**Addendum #2, August 26, 2026:** the bullet above ("No `AActor*`, no `UObject*`, no `FVector`
+inside the rules layer") bundles three separate claims under one prohibition, and only two of
+them still hold on their own merits once the prior addendum's engine-independence goal is set
+aside. This addendum narrows the bullet only — Decision #1/#3's role in this rule, and the
+**Why** paragraph above, are both unaffected.
+
+- **Simulation/presentation separation itself is unchanged** — still fully justified independent
+  of PRS, and independent of everything below.
+- **No `UObject*`/`AActor*` ownership in simulation state stands, re-justified.** The original
+  rule implied engine-independence and version-drift resistance as its reasons; neither survives
+  scrutiny (see `combat_decisions.md` Decision #6). The actual reasons: (1) test cost — a test
+  over plain structs is a function call, a test over `AActor`s needs a `UWorld`; (2) Rule 6
+  determinism — `UObject` lifecycle, GC timing, and construction/registration order make
+  bit-identical replay from a seed genuinely hard, where POD makes it close to free; (3) future
+  serialization — save state, replays, and seed+input bug reproduction are cheap over POD and
+  expensive to retrofit onto an actor graph. None of these three require the engine to be
+  absent, only that simulation *state* not be owned by actor-lifecycle objects.
+- **The blanket `FVector` prohibition is dropped.** `FVector` is a POD math type in the engine's
+  `Core` module — banning it bought nothing once engine-independence was off the table.
+  **UE Core value types — `FIntPoint`, `TArray`, `TMap`, `FString` — are explicitly permitted,
+  and preferred over hand-rolled or `std::` equivalents,** since this is a UE5-only plugin
+  (Rule 11) and Core types interoperate with the rest of the codebase without translation at the
+  presentation boundary.
+- **`FVector` specifically should still not be used for grid coordinates — but that is Rule 10's
+  concern, not this rule's.** A grid coordinate is a discrete rows×columns index (Decision #5),
+  not a float 3-vector; using `FVector` for one would be a domain-discipline violation (grid
+  coordinates vs. world units), regardless of which module the type lives in. Cited here
+  explicitly so dropping the blanket engine-type ban doesn't read as license to blur that
+  boundary — `FIntPoint` remains correct for a grid coordinate, `FVector` remains wrong for one,
+  for an entirely different reason than "it's an engine type."
+
 ---
 
 ### Rule 6 — Explicit State Ownership and Determinism (Mandatory)
