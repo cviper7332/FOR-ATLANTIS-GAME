@@ -259,6 +259,30 @@ aside. This addendum narrows the bullet only — Decision #1/#3's role in this r
   boundary — `FIntPoint` remains correct for a grid coordinate, `FVector` remains wrong for one,
   for an entirely different reason than "it's an engine type."
 
+**Addendum #3, August 26, 2026:** Addendum #2's closing line — *"`FIntPoint` remains correct for
+a grid coordinate"* — is still true as a general permission under this rule, and nothing about it
+was wrong. Nothing below narrows that permission project-wide.
+
+RTAC's actual simulation code has since gone further than the rule requires. Grid positions in
+`Plugins/RTAC/Source/RTAC/Public/Simulation/` use a dedicated
+`FRTACGridPosition { int32 Row; int32 Column; }` type, not `FIntPoint`. This is a deliberate
+implementation choice specific to grid positions, not a reinterpretation of the rule: `FIntPoint`'s
+`X`/`Y` naming reads as screen space everywhere else in the engine (`X` = horizontal), which runs
+opposite to this grid's rows×columns meaning (Decision #5). Reusing `FIntPoint` for a grid
+position would have left that mapping correct only for as long as every caller noticed a comment
+saying so; naming the fields `Row`/`Column` makes it unmisreadable by construction instead.
+
+**This is narrow, not a rule change:**
+- Rule 5 itself is unchanged. `FIntPoint` is not banned project-wide.
+- Other future simulation types are not required to avoid `FIntPoint`. Where no equivalent
+  row/column-vs-X/Y ambiguity applies — a screen-space offset, an actual 2D world index with no
+  competing convention — `FIntPoint` remains the correct, preferred choice per Addendum #2.
+- This addendum exists so a future reader citing Addendum #2's "`FIntPoint` remains correct for a
+  grid coordinate" line doesn't reintroduce it for *grid positions specifically*, without knowing
+  that case was deliberately superseded by `FRTACGridPosition`.
+
+Caught by the implementer (CC/Opus) during the `FRTACGridPosition` type-swap task, same date.
+
 ---
 
 ### Rule 6 — Explicit State Ownership and Determinism (Mandatory)
