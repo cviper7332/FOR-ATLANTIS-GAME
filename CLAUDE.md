@@ -278,6 +278,50 @@ Confirmed by reading both plugins' `.uplugin` descriptors directly, August 26, 2
 
 ---
 
+## Running RTAC's Automation Tests
+
+RTAC's tests live inside the plugin per Rule 11
+(`Plugins/RTAC/Source/RTAC/Private/Tests/`), and run as UE Automation Tests inside the editor.
+There is no standalone test binary and none is to be created — see `docs/PHASES.md` Phase 0's
+Test Harness section.
+
+**Manual run — Session Frontend (verified working):**
+
+1. Open UE5.8 with `ProjectAtlantis.uproject`.
+2. `Tools` menu → `Test Automation` (this is the Session Frontend's Automation tab; on some
+   layouts it is reached via `Window` → `Test Automation` instead).
+3. In the test tree, expand `RTAC` → `Simulation` → `Grid` → `BasicLifecycle`.
+4. Tick it and click `Start Tests`.
+5. Confirm the result reads **Success**.
+
+Confirmed working live on **August 29, 2026** — `RTAC.Simulation.Grid.BasicLifecycle` was
+discoverable in the tree and ran to a `Success` result. That run was of commit `3df1fed`.
+
+**Reading results via MCP:** the test mirrors each assertion's outcome into the `LogRTAC`
+category, so results are retrievable programmatically without the Session Frontend UI:
+
+```
+EditorToolset.LogsToolset → GetLogEntries(category="LogRTAC", pattern=".*", maxEntries=1000)
+```
+
+This returns a bookended block — a `— starting —` line, one `[PASS]`/`[FAIL]` line per assertion,
+and a `complete: N/N assertions passed` summary. Passes log at `Log` verbosity and failures at
+`Warning`, deliberately — see `docs/reference.md` → Automation Testing for why that split matters
+(the automation framework intercepts `Error`-verbosity logs during a test and converts them into
+test failures, so logging failures at `Error` would double-count them).
+
+> **The MCP-retrieval path above is written but not yet verified.** The assertion logging was added
+> after the `3df1fed` run, so it has never been compiled. Confirm it against a live editor after the
+> next build before relying on it; the Session Frontend procedure is the one actually confirmed.
+
+**Remember the build-verification discipline above** — a test file added or edited since the last
+build is not in the loaded DLL, and the Session Frontend will happily run the *previous* compiled
+version without saying so. Check that
+`Plugins/RTAC/Binaries/Win64/UnrealEditor-RTAC.dll` postdates the test source before trusting a
+result.
+
+---
+
 ## UE5 API Reference — Ground Truth
 
 Local engine source is installed at:

@@ -43,7 +43,7 @@ resolution effect) is not acceptable.
 
 | Phase | Description | Status |
 |---|---|---|
-| 0 | Foundation & Test Harness | `PARTIAL — plugin scaffold live; automation test harness OUTSTANDING` |
+| 0 | Foundation & Test Harness | `CLOSED — enacted in 9286975, c5527ca, 3df1fed` |
 | 1 | Grid & Movement (Headless Simulation) | `PARTIAL — grid and tile types written, dimensions locked (Decision #8); OUTSTANDING: movement, entities, determinism and multi-entity tests` |
 | 2 | Presentation & First Playable Board | `OPEN` |
 | 3 | Attacks, HP/Damage & Tile Modifiers | `OPEN` |
@@ -58,10 +58,18 @@ resolution effect) is not acceptable.
 
 # Phase 0 — Foundation & Test Harness
 
-**Status:** `PARTIAL — plugin and Simulation/ tree confirmed compiling (build verified August 29,
-2026), dependency registration, simulation-type standard, explicit state struct, and dedicated
-log category all satisfied and module confirmed loading in-editor; OUTSTANDING: automation test
-existence, discoverability, demonstrated fail-capability, and run-procedure documentation (Part B)`
+**Status:** `CLOSED — enacted in 9286975, c5527ca, 3df1fed`
+
+All ten Definition of Done items satisfied, Part A and Part B alike. Part A closed by `9286975`
+(simulation types) and `c5527ca` (compile confirmed, dependency registration, explicit state
+struct, `LogRTAC` category); Part B closed by `3df1fed` (first automation test, discoverable and
+run to `Success` in the Session Frontend on August 29, 2026) plus this commit's run-procedure
+documentation in `CLAUDE.md`.
+
+One item carried forward as non-blocking: assertion-outcome logging to `LogRTAC` was added to the
+test *after* the confirmed `3df1fed` run, so the MCP log-retrieval path documented in `CLAUDE.md`
+is written but unbuilt and unverified. It is an enhancement beyond this phase's DoD — no DoD item
+requires it — and so does not hold Phase 0 open. Verify it after the next build.
 
 ## Prerequisite
 
@@ -134,11 +142,27 @@ Review instead.
 **Part B — requires UE5.8 open**
 - [x] Plugin loads in-editor; `LogRTAC: RTAC module loaded.` confirmed via
       `EditorToolset.LogsToolset` and on disk
-- [ ] At least one UE Automation Test exists, is discoverable from the editor's Session
-      Frontend, and can be run
-- [ ] That test exercises simulation state and can *fail* — a test that cannot fail is not
-      evidence (Failure Mode 8)
-- [ ] The exact run procedure documented in `CLAUDE.md`
+- [x] At least one UE Automation Test exists, is discoverable from the editor's Session
+      Frontend, and can be run — `RTAC.Simulation.Grid.BasicLifecycle`
+      (`Plugins/RTAC/Source/RTAC/Private/Tests/RTACGridTest.cpp`, added in `3df1fed`), confirmed
+      discoverable in the Session Frontend tree and run by Omar on August 29, 2026, result
+      **Success**.
+- [x] That test exercises simulation state and can *fail* — a test that cannot fail is not
+      evidence (Failure Mode 8). **Stated precisely: this is a claim about the test's design, not
+      something one green run proves.** The successful run above confirms the test currently
+      passes; it does not and cannot demonstrate failability. What supports failability is the
+      test's construction — each assertion is tied to a specific named regression that would trip
+      it: a broken `ToIndex()` or a `Position` never assigned during `Init()` fails the
+      position-agreement assertion; an off-by-one in either direction of `IsValidPosition()`'s
+      `Row >= 0 && Row < Rows` guard fails one of the two bounds assertions; a `Reset()` that
+      clears incompletely fails the post-reset assertions. The mechanism by which a failed
+      assertion actually fails the test (`AddError()` → `HasAnyErrors()`, verified at
+      `AutomationTest.cpp:1376`) is documented in `docs/reference.md`. A deliberate
+      failure-injection run has **not** been performed; if one is wanted as harder evidence, that
+      is a separate exercise from this DoD item.
+- [x] The exact run procedure documented in `CLAUDE.md` — see "Running RTAC's Automation Tests",
+      covering the verified Session Frontend path and, marked explicitly as not-yet-verified, the
+      `LogRTAC` MCP-retrieval path.
 
 ## Exit
 

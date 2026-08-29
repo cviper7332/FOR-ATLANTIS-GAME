@@ -164,6 +164,61 @@ if (TestNotNull(TEXT("..."), Ptr))
 A crashing test is worse evidence than a cleanly failing one, so guard the dereference rather than
 letting a legitimate assertion failure take the whole run down.
 
+### The framework intercepts `UE_LOG` during a test run — verbosity is load-bearing
+
+Not obvious, and it changes how you instrument a test. For the duration of a test, the framework
+installs `FAutomationTestFramework::FAutomationTestOutputDevice`, which intercepts log output
+(`AutomationTest.cpp:218`). Its capture predicate (`:233`):
+
+```cpp
+bool CaptureLog = !LocalCurTest->SuppressLogs()
+    && (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning || Verbosity == ELogVerbosity::Display)
+    && LocalCurTest->ShouldCaptureLogCategory(Category);
+```
+
+A captured entry becomes an automation event (`:243-254`): `Error` → `EAutomationEventType::Error`,
+`Warning` → `EAutomationEventType::Warning`.
+
+Consequences worth knowing before writing any test logging:
+
+- **`Log` verbosity is not intercepted at all.** It is absent from the predicate, so
+  `UE_LOG(Cat, Log, ...)` inside a test provably cannot affect the result, however much of it
+  there is.
+- **`UE_LOG(Cat, Error, ...)` inside a test fails that test.** It becomes an Error event, which
+  feeds `HasAnyErrors()`, which is one of the three conjuncts at `:1376`. This is a way to fail a
+  test without ever calling an assertion helper — and a way to fail one *accidentally*, if code
+  under test logs an error on a path the test deliberately exercises.
+- **Warnings do not fail a test by default**, but this is config-dependent:
+  `bElevateLogWarningsToErrors` defaults to `false` (`:181`) and is read from `GEngineIni` under
+  `[/Script/AutomationController.AutomationControllerSettings]` (`:2055`). This project does not
+  set it — verified by grepping `ProjectAtlantis/Config/`. If it is ever enabled, warnings logged
+  during tests become failures.
+
+### Pattern: mirror assertion outcomes into the project's own log category (MCP-queryable)
+
+Reusable pattern, established with `FRTACGridBasicLifecycleTest` — future RTAC tests should follow
+it rather than reinventing it.
+
+The Session Frontend shows per-assertion detail in its own UI, but that detail is not reachable
+from `EditorToolset.LogsToolset`'s `GetLogEntries`. Since MCP log reading is this project's main
+programmatic window into the editor, tests additionally mirror each assertion's outcome into
+`LogRTAC` (Rule 9's dedicated category — do not add a second category for tests), bookended by a
+start line and an `N/N assertions passed` summary. A single
+`GetLogEntries(category="LogRTAC", pattern=".*")` then shows the whole run.
+
+Three constraints make this safe rather than a source of false results:
+
+1. **Additive only.** The logging wraps assertion helpers, it does not replace them. The helpers
+   still drive the real pass/fail state via `AddError()` — per the `:1376` conjunction above,
+   `HasAnyErrors()` is what actually fails a test, never a log line.
+2. **Passes log at `Log`, failures at `Warning` — not `Error`.** Given the interception rules
+   above, logging a failure at `Error` would register a *second* error event for one already-failed
+   assertion, inflating the reported error count and making one failure look like two. `Warning`
+   echoes the failure for a human or an MCP query without touching the error count.
+3. **Wrap, don't duplicate the description string.** Thin `CheckTrue`/`CheckEqual`/… lambdas that
+   call the assertion and record its result keep one description per call site, so the assertion's
+   message and its log line cannot drift apart (Failure Mode 7).
+
 ### Module and build implications
 
 - Automation-test support (`Misc/AutomationTest.h`) lives in the **`Core`** module. `Core` is
