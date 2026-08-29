@@ -22,7 +22,7 @@ struct FRTACTile
 	 * Entity currently occupying this tile, or INDEX_NONE when empty.
 	 *
 	 * A plain integer ID, never a pointer of any kind. Rule 5 (Addendum #2) and Decision #6
-	 * bar UObject*/AActor* ownership from simulation state; the reasons that survive scrutiny
+	 * bar UObject* / AActor* ownership from simulation state; the reasons that survive scrutiny
 	 * are test cost, Rule 6 determinism, and future serialization — all of which an integer
 	 * handle preserves and a pointer destroys. Resolving an ID to whatever actor renders it
 	 * is a presentation-layer concern.

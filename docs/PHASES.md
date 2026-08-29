@@ -58,7 +58,10 @@ resolution effect) is not acceptable.
 
 # Phase 0 — Foundation & Test Harness
 
-**Status:** `PARTIAL — plugin scaffold live; automation test harness OUTSTANDING`
+**Status:** `PARTIAL — plugin and Simulation/ tree confirmed compiling (build verified August 29,
+2026), dependency registration, simulation-type standard, explicit state struct, and dedicated
+log category all satisfied and module confirmed loading in-editor; OUTSTANDING: automation test
+existence, discoverability, demonstrated fail-capability, and run-procedure documentation (Part B)`
 
 ## Prerequisite
 
@@ -109,18 +112,24 @@ Review instead.
 **Part A — verifiable without a live editor session**
 - [x] `RTAC.uplugin`, `RTAC.Build.cs`, `RTACModule.h/.cpp` exist and compile — confirmed by the
       August 26, 2026 build that produced `Binaries/Win64/UnrealEditor-RTAC.dll`
-- [ ] The `Simulation/` tree compiles — written August 28, 2026 and **never built**. The linked
-      DLL predates every file under `Source/RTAC/*/Simulation/`, so no compile claim covers them
-      (`CLAUDE.md` → build verification). Omar triggers the build.
+- [x] The `Simulation/` tree compiles — confirmed compiled August 29, 2026. The linked
+      `Binaries/Win64/UnrealEditor-RTAC.dll` postdates every file under `Source/RTAC/*/Simulation/`
+      (`CLAUDE.md` → build verification), and the MCP-read output log corroborates it independently:
+      `LogModuleManager: InternalLoadLibrary: 'RTAC' (...UnrealEditor-RTAC.dll)` and
+      `LogRTAC: RTAC module loaded.` both timestamped after that build. A comment-syntax bug in
+      `RTACTile.h` (a literal `*/` inside a Doxygen comment's prose, closing the comment block early
+      and turning the remainder of the file into unparsed code) caused the prior build failure and
+      was fixed before this build; the fix is punctuation-only and changes no comment's meaning.
 - [x] `RTAC` registered in `ProjectAtlantis.Build.cs`'s `PublicDependencyModuleNames`
-- [ ] A simulation subtree exists holding plain structs and UE Core value types only
+- [x] A simulation subtree exists holding plain structs and UE Core value types only
       (`TArray`, `TMap`, `FString`, etc. — permitted and preferred per Rule 5 Addendum #2);
       no `UObject*`/`AActor*` **ownership** in simulation state. `FIntPoint` remains permitted
       generally, but grid positions specifically use `FRTACGridPosition` per Rule 5 Addendum #3.
-- [ ] Simulation state lives in an explicit state struct with no hidden globals or statics,
-      per Rule 6
-- [ ] Dedicated log category in use (`LogRTAC` — already confirmed working), not `LogTemp`,
-      per Rule 9
+- [x] Simulation state lives in an explicit state struct with no hidden globals or statics,
+      per Rule 6 — `FRTACGrid` holds only its own member state (`Rows`, `Columns`, `Tiles`) plus
+      `static constexpr` compile-time constants; no mutable globals or statics anywhere in it.
+- [x] Dedicated log category in use (`LogRTAC` — confirmed working via the output log Omar
+      pasted, and independently via `EditorToolset.LogsToolset`), not `LogTemp`, per Rule 9
 
 **Part B — requires UE5.8 open**
 - [x] Plugin loads in-editor; `LogRTAC: RTAC module loaded.` confirmed via
