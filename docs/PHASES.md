@@ -68,9 +68,24 @@ absent from 5.6/5.7. Confirm the editor in use is 5.8 before starting any Part B
 
 ## Goal
 
-Prove the Safety Ruleset is enforceable, not aspirational — specifically Rule 5's
-simulation/presentation boundary. Mirrors PRS Phase 0's goal (establish structure, prove the
-ruleset is enforceable) adapted to this project's actual architecture.
+By the end of this phase the RTAC plugin exists as a real, loading, compiling module, and the
+Safety Ruleset governing it is demonstrably enforceable rather than aspirational — Rule 5's
+simulation/presentation boundary above all, with Rules 6, 9, and 11 alongside it.
+
+Concretely: the plugin's descriptor, build script, and module boilerplate compile, and so does
+everything under its `Simulation/` tree — a claim that requires an actual build, not an inference
+drawn from source files existing. RTAC is registered as a dependency of the main project so the
+two genuinely link. The simulation subtree holds plain structs and UE Core value types only,
+with no `UObject`/`AActor` ownership anywhere in simulation state; that state lives in an
+explicit struct with no hidden globals or statics (Rule 6); and diagnostics go through the
+dedicated `LogRTAC` category rather than `LogTemp` (Rule 9).
+
+The test harness is the other half of the phase, and the half its name points at. At least one
+UE Automation Test exists inside the plugin, is discoverable from the editor's Session Frontend,
+and runs — against a live UE 5.8 editor, which is a hard floor for this project rather than a
+preference (Decision #7). That test exercises real simulation state and is demonstrably capable
+of failing, since a test that cannot fail is not evidence (Failure Mode 8). The exact procedure
+for running it is written down in `CLAUDE.md`, so the next person doesn't have to rediscover it.
 
 ## Test Harness
 
@@ -193,8 +208,20 @@ single-entity setup, either of which would collapse the very behaviour under tes
 
 ## Goal
 
-See the grid, move on it, isometric per Decision #1. The Rule 5 boundary survives contact with
-an actual renderer.
+By the end of this phase the board is visible and playable: it renders in an isometric 2.5D view
+per Decision #1, at the dimensions chosen in Phase 1, and a player can move on it in PIE.
+
+Getting there requires two conversions to exist and to live in exactly the right place. Grid
+coordinates become world units in exactly one named function, on the presentation side and
+nowhere else (Rule 10). Screen-space input becomes grid-space position through the isometric
+projection — a real projection, not an axis swap — so hit-testing resolves in grid space rather
+than being approximated in screen space (Rule 10, Decision #1).
+
+The phase's actual proof is a falsifiable one: changing the camera — swapping the isometric
+angle, say — must require zero changes to simulation code. That is the operational test of
+Rule 5 and Decision #1 together, and the direct analogue of PRS Phase 3's "adding green phosphor
+required zero structural changes." If a camera change reaches into grid code, the boundary this
+phase exists to validate has already failed.
 
 ## Definition of Done
 
@@ -218,8 +245,24 @@ an actual renderer.
 
 ## Goal
 
-Combat resolution exists: buster, HP/damage, and BN3's flat tile modifiers (ice, grass, lava,
-steel, poison, cracked, broken panels).
+By the end of this phase combat resolves: a buster attack lands, HP and damage are modeled, and
+BN3's flat tile modifiers — ice, grass, lava, steel, poison, cracked, broken panels — affect the
+outcome.
+
+How that resolution is built matters as much as that it exists. The damage formula names the
+domain of every stage explicitly — pre- versus post-mitigation, additive versus multiplicative —
+so one constant cannot silently mean two different things at two points in the chain (Rule 10,
+Failure Mode 2). Before any of it is implemented, one concrete scenario is traced by hand end to
+end — this attacker, this attack, this tile, this defender — and the resulting number agreed;
+the implementation then has to reproduce that number rather than define it (Failure Mode 4).
+
+Every balance scalar introduced here — damage values, tile-modifier strengths — carries a test
+that varies it and asserts the output moves in the intended direction and by the intended
+magnitude, with the condition the test runs under stated explicitly. A scalar that cannot move
+the output under any condition is inert, and gets deleted or documented as deliberately so
+(Failure Mode 1). And each tile modifier's effect resolves in the simulation layer, not painted
+on as presentation-only VFX — a modifier that looks active but changes no outcome fails the
+Mechanical Fidelity Standard as surely as it fails Rule 5.
 
 ## Resolves
 
@@ -247,7 +290,24 @@ steel, poison, cracked, broken panels).
 
 ## Goal
 
-Something fights back, legibly.
+By the end of this phase enemies fight back, and they do so in more than one way. At least two
+mechanically distinct AI behaviour patterns exist — not one pattern wearing two skins. A single
+enemy cannot prove any of this: with one opponent on the board, targeting, threat selection, and
+telegraph readability all collapse into a degenerate case that says nothing about the general one
+(Failure Mode 5, which names this exact risk).
+
+Telegraphing is what makes an attack answerable rather than arbitrary, and that depends on timing
+being unambiguous. Telegraph timing is expressed in one authoritative domain — frames or seconds,
+chosen and stated — converted exactly once at the boundary, with the conversion factor written
+down (Rule 10). Two places holding the "same" wind-up duration in different units is how a
+telegraph silently drifts out of sync with the attack it exists to announce.
+
+Where the AI reads from, and how it is switched on, matter as much as what it does. AI queries
+simulation state only, never the presentation layer — an enemy that decides based on where a mesh
+is drawn has punched through the Rule 5 boundary no matter how correct it looks on screen. And
+each AI system's active/inactive state is gated on its own condition, never nested inside another
+system's guard (Rule 8), so switching one behaviour off cannot silently take a second one down
+with it.
 
 ## Resolves
 
@@ -275,7 +335,24 @@ Something fights back, legibly.
 
 ## Goal
 
-The BN3 loop closes: a full match runs start → win/lose.
+By the end of this phase the BN3 loop closes: a full match runs from engagement through
+resolution to a win or a loss. Not merely once — it runs deterministically from a fixed seed, the
+same seed producing the same match every time (Rule 6). Without that, a match that completes
+proves only that it completed, and nothing found inside it can be reproduced.
+
+Closing the loop means fixing its order. Round and turn timing follow one declared, documented
+sequence — Input → Simulation tick → Resolution → Presentation — with no stage reading a later
+stage's output (Rule 7). An update order that is merely emergent is one nobody can reason about,
+and a single frame-late read is exactly the kind of defect that hides behind correct-looking
+behaviour for entire phases.
+
+The phase's second half is the resource economy the loop runs on. BN3's chip-and-folder system
+gets a direction chosen here — kept as-is, replaced, or reworked into something Atlantis-specific
+— and that choice is logged as its own `combat_decisions.md` Decision entry, not settled in code
+and not settled in conversation. `combat_decisions.md` deliberately held this open "until the
+core loop exists to build against"; this phase is where that condition is finally met, and the
+whole point of the deferral is lost if the answer arrives as an implementation instead of as a
+decision.
 
 ## Resolves
 
@@ -330,8 +407,27 @@ actually run, not just available.
 
 ## Goal
 
-Decision #3 becomes real. Mechanical direction is chosen and logged as its own new Decision
-entry *before* implementation begins — not decided in code.
+By the end of this phase elevation is real: Decision #3's deferred mechanic has a direction, and
+that direction is built and verified on the board. The direction itself is chosen first — from
+the brainstormed options already logged, or from beyond them — and recorded as its own
+sequential `combat_decisions.md` entry *before* implementation starts. Decided in the log, not
+in code.
+
+The hard part is proving the constraint Decision #3 attached to it. Elevation must not reduce to
+a simple high-is-better axis, and that is a claim about *situational* strength, which no single
+steady-state test can validate — Failure Mode 1 says so in as many words. So the proof takes the
+shape of at least two distinct, named conditions with opposite outcomes: high ground winning
+under condition A, low ground winning under condition B, not one scenario run until it looks
+right. Those tests run on non-flat, multi-elevation boards, since a board where every tile sits
+at the same height collapses precisely the axis this phase exists to introduce (Failure Mode 5).
+
+Where the code goes matters as much as what it does. Elevation is not a nested branch bolted
+inside the existing tick or tile-update loop (Rule 8) — reserving the inert elevation slot back
+in Phase 1 was the preparation for exactly this, and spending it on a nested conditional would
+waste it. And the phase answers a question it inherits rather than leaving it open: whether the
+grid dimensions chosen in Phase 1 actually give elevation enough room to read clearly. That gets
+an explicit answer, one way or the other, on the record — not a silence that later reads as
+agreement.
 
 ## Resolves
 
@@ -374,8 +470,21 @@ chain — flagged as such rather than forcing false sequencing.
 
 ## Goal
 
-Decision #4's transition mechanism (GameMode swap vs. a mode flag on
-GameState/PlayerController vs. something else) is decided and logged *before* implementation.
+By the end of this phase the player can actually cross from exploration into combat: engaging an
+enemy in the world drops them into a contained, contextual arena, with no random encounters
+anywhere in the path — matching Decision #4's description exactly rather than approximately.
+
+The mechanism that does it is chosen before it is built. A GameMode swap, a mode flag on
+GameState or PlayerController, or something else entirely — the choice is made and recorded as
+its own sequential `combat_decisions.md` entry, citing Decision #4 as the structural philosophy
+it implements, before any implementation begins.
+
+Two boundaries constrain how it gets wired. Rule 11 caps what may be added to
+`Source/ProjectAtlantis/`: the thin invoke path that triggers the transition, and nothing else —
+no combat logic follows it across into the main module. And Rule 8 governs the gating. Entering
+combat is conditioned on its own state alone, never nested inside or short-circuited by an
+unrelated feature's guard, so an engagement can never quietly fail to start because something
+else happened to be switched off.
 
 ## Resolves
 
@@ -401,8 +510,27 @@ GameState/PlayerController vs. something else) is decided and logged *before* im
 
 ## Goal
 
-Enemy roster filled out, balance passes complete, and — the item nothing before this phase
-verifies — RTAC's actual portability claim is tested, not assumed.
+By the end of this phase the combat system is content-complete and the plugin's central claim has
+been put to an actual test. The full enemy roster is implemented per the story outline's faction
+lore, and a balance pass covers all of it — the whole roster *and* the elevation directions
+Phase 6 introduced, since balancing the roster alone leaves the newest axis in the game untuned.
+
+The portability proof is the item nothing before this phase verifies, and it is falsifiable
+rather than rhetorical: RTAC compiles *and runs* inside a clean UE5.8 project containing no
+`ProjectAtlantis` references of any kind. That is the direct test of the plugin's entire stated
+reason for existing — `RTAC.uplugin`'s "portable across UE5 projects" — and the analogue of PRS
+Phase 3's zero-structural-change sensor-abstraction test. Alongside it, `Plugins/RTAC/` is
+re-audited for `ProjectAtlantis`-only dependencies that may have crept in since Phase 0: Rule 11
+gets re-verified here, not assumed to have held on its own for eight phases.
+
+The phase also settles a number this project has deliberately refused to guess. RTAC's
+*consumer* engine floor — the oldest UE version a project dropping RTAC in can use — is
+explicitly undetermined until tested, and Decision #7 does not answer it. Decision #7's UE 5.8
+requirement is a *development*-workflow constraint born of MCP editor introspection, and a
+consumer of the plugin never needs MCP. Whether RTAC's own code compiles against 5.6 or 5.7 is a
+property of RTAC's code alone, and it gets determined by an actual build against a candidate
+version — both are installed on this machine and available for exactly this — rather than by
+picking a plausible-sounding number.
 
 ## Resolves
 
