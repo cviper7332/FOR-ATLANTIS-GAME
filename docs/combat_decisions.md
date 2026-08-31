@@ -245,6 +245,194 @@ seeded-state-container design task on August 29, 2026.
 
 ---
 
+## Decision #10 — Movement Rules: Discrete Step, Mutable Ownership, Reusable Legality Check
+
+**Date:** August 30, 2026
+**Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation)
+**Author:** Omar
+**Status:** OPEN
+
+**Decision:** Movement resolves as one discrete tile-step per input event, validated against a
+reusable legality check with four separable clauses, against a grid whose per-tile ownership is
+externally assigned rather than computed. Six sub-rulings, detailed below.
+
+**1. Movement is discrete, one tile per input — not continuous, not select-and-confirm.**
+
+One button press moves the entity exactly one tile in the pressed direction. Holding a direction
+does not produce continuous glide-style motion; repeated presses produce repeated discrete steps.
+This is closer to tile-by-tile stepping than to BN3's real-time continuous movement feel, but it
+is *responsive* tile-stepping — the player's own input rate drives repetition, not a
+game-interpreted "held = moving" state. Confirmed against actual BN3 behavior (Omar), not
+assumed from genre convention.
+
+**Why this matters for Phase 1 specifically:** this makes "one input" trivially well-defined for
+Rule 6's determinism test. An input sequence is a list of discrete move-events (up/down/left/
+right), applied one at a time — no continuous position, no sub-tile interpolation, no tick-rate
+decision needed at the simulation layer to define what a single unit of input means.
+
+**2. Movement speed modifiers are presentation-layer only — not a Phase 1 (or any simulation-layer)
+concern.**
+
+BN3 has movement-speed-affecting items (implied by Omar's "idk, I think it's just the anim played
+faster"). Given Ruling 1 — movement is always exactly one discrete tile-step at the simulation
+level — "faster movement" cannot be a simulation-layer concept: the simulation has no notion of
+speed, only "did the step resolve." Any such modifier can only mean "how long the presentation
+layer takes to animate an already-resolved step." This follows from Ruling 1 by construction, not
+as a separate design choice requiring its own justification. No `FRTACEntity` field, no
+simulation-layer hook, is reserved for this — there is nothing for such a hook to attach to.
+
+**3. Tile ownership is a per-tile field on `FRTACTile`, externally assigned per battle — not
+computed from a symmetric grid-split assumption.**
+
+Every mainline MMBN battle *defaults* to a symmetric 3×3/3×3 player/enemy split, but this is not
+universal: Liberation Mission-style battles (MMBN5, per Omar) can start with asymmetric
+configurations — the player surrounded (3×2 enemy / 3×2 player / 3×2 enemy), or one side starting
+with more field than the other (3×4/3×2 or 3×2/3×4) — set by "authored rules," not derived from
+grid dimensions at runtime.
+
+**Consequence:** ownership cannot be computed once from `Rows`/`Columns` and a hardcoded
+left-half/right-half split. It must be data — assigned externally per tile, at battle setup, by
+whoever configures the battle (eventually a level-author-facing concept, in the same spirit
+Decision #8 already exposes `Rows`/`Columns` for editor configuration; the authoring *interface*
+itself is out of scope for this decision and for Phase 1).
+
+**Type shape (illustrative, not binding on the implementer):** an enum on `FRTACTile` — e.g.
+`ETileOwner { Player, Enemy, Neutral }` — is the expected shape, but exact naming is an
+implementation detail, not a design ruling this decision is fixing.
+
+**4. Movement legality is a reusable, separably-clause-based check — not movement-exclusive
+logic, and not one opaque boolean.**
+
+A move (or any request to validate "can entity E legally occupy tile T") is legal only if **all**
+of the following hold, checked as **separately named clauses**, not folded into one undifferentiated
+boolean:
+
+- **In bounds** — `IsValidPosition()` already exists (Phase 0); reused, not reimplemented.
+- **Unoccupied** — `FRTACTile.OccupantEntityId` is `INDEX_NONE`.
+- **Owned by the mover's side** — the destination tile's ownership (Ruling 3) matches the
+  entity's side. Normal movement can never cross the ownership boundary; this is the mechanism
+  that enforces "player half stays player half" as an actual rule, not merely convention.
+- **Not broken** — a broken tile (`ERTACSurfaceModifier`, already reserved in Phase 0) blocks
+  entry for an entity without a qualifying modifier (see Ruling 5).
+
+**Why separable clauses, specifically, rather than one combined boolean:** two independent future
+consumers need to interact with individual clauses without touching the others, and neither
+consumer exists yet, which is exactly why the shape must be decided now rather than discovered
+under pressure later (the same Rule 8 logic Decision #9 already applied to `ArchetypeId`):
+
+- A future per-entity modifier (Ruling 5 — hover, Air Shoes) needs to override the *not-broken*
+  clause specifically, for that entity only, without altering in-bounds/unoccupied/ownership
+  checking for anyone else.
+- A future attack/chip system (Ruling 6 — Step-Sword-style reach attacks) needs to ask the
+  identical "can entity E legally occupy tile T" question from *outside* movement entirely,
+  without pretending to be a movement action to get an answer.
+
+Building the check as separable, independently-named clauses now costs nothing extra in Phase 1
+(nothing consumes the separability yet) and avoids movement's core legality logic being rewritten
+from a monolithic boolean into separable pieces under time pressure once Phase 3 or later actually
+needs one of the above.
+
+**5. A tile's `SurfaceModifier` state can be legally bypassed by a per-entity property — the tile's
+rule does not change; what the check is evaluated against, per-entity, does.**
+
+Some entities can legally occupy tiles that would otherwise be illegal for movement: BN3's Air
+Shoes (a program and/or a chip, per Omar) lets the player step onto and occupy broken tiles; some
+enemies "hover" and can move across broken tiles similarly. Omar further notes hovering entities
+may also be exempt from *other* tile-modifier effects while occupying such a tile (e.g. poison
+tiles not depleting HP for a hovering occupant) — flagged here as a related but **distinct**
+mechanic (an in-combat *effect-application* rule, not a *movement-legality* rule) and explicitly
+**not** resolved by this decision; it belongs with tile-modifier resolution (Phase 3) rather than
+movement.
+
+**The shape this implies:** the broken-tile clause in Ruling 4's legality check is not a fixed
+rule uniformly applied to every entity — it is evaluated per-entity, and a future entity-side
+property can change its outcome for that entity specifically. Nothing about Ruling 4's four
+clauses changes structurally to support this later; the clause being independently named
+(Ruling 4) is what makes this override attachable without restructuring the check.
+
+**Explicitly deferred:** no entity-modifier system (Air Shoes, hover, or any other property that
+would alter clause evaluation) is built by this decision or is Phase 1 scope. This ruling commits
+only to the legality check's *shape* being override-compatible, not to building an override
+mechanism now.
+
+**6. Step-Sword-style reach attacks are not movement — they are attacks with a positional
+side-effect, entirely out of scope for movement validation.**
+
+BN3 has attacks (player chips like Step-Sword/Step-Cross; more complex enemy-side equivalents,
+per Omar) where the entity's position visibly shifts — including into enemy territory, bypassing
+Ruling 4's ownership clause entirely — resolves an attack, then the entity returns to its prior
+position. Initially considered as a possible exception embedded inside movement's ownership check;
+rejected on inspection.
+
+**Why this is not a movement-legality exception:** the entity never persistently occupies the
+reach destination. There is no settling-in, no lasting position change — confirmed explicitly by
+Omar ("once the attack resolves the entity is moved right back to the position... not from
+regular movement"). Folding a temporary, attack-scoped position change into movement's own
+ownership clause would require movement's core legality logic to special-case one specific attack
+by name, which is precisely the Rule 8 failure pattern this project has flagged repeatedly
+("logic that never anticipated it"). Movement's ownership clause (Ruling 4) is correct and
+untouched for genuine movement; Step-Sword simply never invokes it.
+
+**Where Step-Sword's own legality lives instead:** if a reach-attack's destination is a broken
+tile, whether the attack is even permitted is governed by the *mover's own properties*
+(Ruling 5's per-entity override mechanism) — the same underlying "can entity E legally occupy
+tile T" question, reused from outside movement by the attack's own resolution logic, not
+movement's ownership clause being bypassed. Confirmed explicitly by Omar: an entity without a
+qualifying modifier (e.g. Air Shoes) cannot complete a Step-Sword-style attack whose destination
+is broken — the attack simply fails that precondition, the same way it would if attempted by an
+entity lacking the modifier during ordinary movement.
+
+**Explicitly deferred:** no attack, chip, or reach-attack system is built by this decision — this
+is out of scope until Phase 3 (attacks) and Phase 5 (chip-equivalent resources) exist. This
+ruling exists so movement's legality check (Ruling 4) is not later contorted to accommodate a
+mechanic it was never meant to handle, and so a future implementer building Step-Sword-style
+attacks knows this interaction was considered and deliberately routed elsewhere, not missed.
+
+**Rejected alternatives:**
+
+- Continuous/held-direction movement (true BN3 real-time glide feel). Rejected for Phase 1 in
+  favor of Ruling 1's discrete-step model — confirmed against actual BN3 mechanics (one tile per
+  press), not a simplification chosen for implementation convenience, though it also happens to
+  sidestep a harder Rule 6/Rule 7 tick-rate question a continuous model would require.
+- A single monolithic "is this move legal" boolean, rather than Ruling 4's separable clauses.
+  Rejected because two independent, not-yet-built future systems (Ruling 5's per-entity
+  overrides, Ruling 6's attack-side reuse) each need to interact with one clause without
+  disturbing the others — discovered as a real requirement during this decision's own drafting,
+  not speculative.
+- Territory computed from a hardcoded symmetric grid-split, rather than Ruling 3's externally-
+  assigned per-tile ownership. Rejected because Liberation Mission-style asymmetric authored
+  starts are real, confirmed BN3 mechanics, not a hypothetical this project chose to accommodate
+  preemptively.
+- Folding Step-Sword-style reach-attacks into movement's ownership clause as a named exception.
+  Rejected per Ruling 6 — Rule 8's "logic that never anticipated it" failure pattern.
+
+**Why this matters:** this is the largest remaining open item blocking Phase 1's actual
+implementation. Nothing about movement — the phase's single largest outstanding Definition of
+Done item — could be built correctly without these six rulings settled first: an entity struct
+existing (Decision #9) is necessary but not sufficient, since movement also needs to know what
+one input means (Ruling 1), what a legal destination is (Ruling 4), and what "territory" even
+means as data (Ruling 3), before any movement code can be written without silently baking in an
+unstated assumption. Rulings 5 and 6 are included in full despite committing to no new Phase 1
+code, specifically because both surfaced directly from reasoning through Ruling 4's shape — Rule
+4 (Append, Don't Rewrite)'s own discipline argues for capturing a design conversation's full
+reasoning at the point it happens, not compressing it down to only the rulings with immediate
+code consequence and losing the "why" a future reader would need to avoid re-deriving the same
+edge cases from scratch.
+
+**Explicitly deferred, project-wide summary (see individual rulings for detail):** movement-speed
+presentation (Ruling 2), the tile-ownership authoring interface (Ruling 3), any entity-modifier
+system — Air Shoes, hover (Ruling 5), any attack/chip/reach-attack system — Step-Sword and its
+enemy-side equivalents (Ruling 6), and the Area Grab-style territory-swap mechanism itself. On
+that last item specifically: the *rule* is decided now — an occupied tile is immune to an
+ownership-swap effect and remains with whoever currently occupies it, resolved per-tile rather
+than as one atomic region-swap (confirmed against actual BN3 Area Grab-family chip behavior,
+Omar) — but the swap mechanism that would apply this rule is not built by this decision and
+remains Phase 5 scope, per the same "chip-equivalent resource system... open until the core loop
+exists to build against" deferral already governing chip-adjacent design in this document's Open
+Questions.
+
+---
+
 
 
 ## Open Questions
