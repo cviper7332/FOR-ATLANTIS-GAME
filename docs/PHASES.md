@@ -44,7 +44,7 @@ resolution effect) is not acceptable.
 | Phase | Description | Status |
 |---|---|---|
 | 0 | Foundation & Test Harness | `CLOSED — enacted in 9286975, c5527ca, 3df1fed` |
-| 1 | Grid & Movement (Headless Simulation) | `PARTIAL — grid and tile types written, dimensions locked (Decision #8); OUTSTANDING: movement, entities, determinism and multi-entity tests` |
+| 1 | Grid & Movement (Headless Simulation) | `PARTIAL — grid and tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9); OUTSTANDING: movement, entities, determinism and multi-entity tests` |
 | 2 | Presentation & First Playable Board | `OPEN` |
 | 3 | Attacks, HP/Damage & Tile Modifiers | `OPEN` |
 | 4 | Enemies & AI | `OPEN` |
@@ -172,7 +172,7 @@ Rules 5, 6, 9, and 11 reviewed against the current simulation code and accepted.
 
 # Phase 1 — Grid & Movement (Headless Simulation)
 
-**Status:** `PARTIAL — grid and tile types written, dimensions locked (Decision #8); OUTSTANDING: movement, entities, determinism and multi-entity tests`
+**Status:** `PARTIAL — grid and tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9); OUTSTANDING: movement, entities, determinism and multi-entity tests`
 
 ## Goal
 
@@ -208,7 +208,7 @@ single-entity setup, either of which would collapse the very behaviour under tes
 
 ## Definition of Done
 
-- [ ] Grid dimensions chosen and logged as their own Decision entry, stated as rows×columns
+- [x] Grid dimensions chosen and logged as their own Decision entry, stated as rows×columns
       per Decision #5
 - [ ] Simulation types hold plain structs and UE Core value types (`TArray`, `TMap`, `FString`,
       etc. — permitted and preferred per Rule 5 Addendum #2); no `UObject*`/`AActor*`
@@ -232,6 +232,22 @@ single-entity setup, either of which would collapse the very behaviour under tes
 > Reserving the data slot with zero gameplay effect honors both constraints — flagged explicitly
 > so it doesn't read as a sequencing violation of Decision #3's "core and elevation not designed
 > simultaneously" requirement.
+
+> **On the determinism DoD item — what's built, and what still isn't.** This item remains
+> unchecked, correctly: no test exists yet that runs an actual input sequence against match state
+> and confirms two runs from the same seed converge on the same final state, because no movement
+> code exists yet for such a sequence to consist of. That test is real outstanding work, not
+> paperwork — it stays on the list.
+>
+> What Phase 1 has built so far is groundwork toward it, not a substitute for it. Phase 1 has no
+> gameplay randomness: nothing in it draws from a random stream. `EntityId` is a plain
+> incrementing counter, not a random draw (Decision #9 and its August 30, 2026 clarification
+> addendum). The seed-derivation mechanism itself (`RTACDeriveStreamSeed`, `FRTACRngState`) is
+> unit-tested in isolation for purity, independence, and stability — this is real, passing,
+> verified work, but it is a test of the mechanism a future stream will use, not a test of the
+> DoD item's actual claim. A reader should take neither the passing derivation tests nor the
+> absence of live randomness as evidence this item is closed; it isn't, until the input-sequence
+> replay test exists.
 
 ---
 

@@ -184,6 +184,67 @@ This also resolves the "Why this matters" paragraph's internal reference to *"Ru
 
 ---
 
+## Decision #9 — Entity Identity: Plain Instance Counter, Separate from Archetype Key
+
+**Date:** August 29, 2026
+**Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation)
+**Author:** Omar
+**Status:** OPEN
+
+**Decision:** An entity occupying a grid tile is identified by two separate fields, not one:
+
+- `EntityId` — instance identity only. A plain, monotonically incrementing integer assigned in
+  spawn order (0, 1, 2, ...), sourced from explicit seeded state per Rule 6. Carries no meaning
+  beyond "which occupant is this" — it is not descriptive, not derived from a name string, and
+  not derived from anything environmental (spawn timestamp, memory address).
+- `ArchetypeId` — a separate lookup key (e.g. `FName`) identifying *what kind* of entity this is
+  (e.g. `"Sentinel"`), for a future stats/behavior lookup. Reserved as a field now; the lookup
+  table itself is out of scope for Phase 1 and is not being built by this decision.
+
+These two are not the same field and must not be merged into one (e.g. a descriptive name string
+used as the instance ID). `Position` (`FRTACGridPosition`, already existing) completes the
+minimal entity: `EntityId` + `Position` + `ArchetypeId`.
+
+**Rejected alternatives:**
+
+- A single descriptive-name identity (e.g. `"Sentinel_03"`) serving as both instance ID and
+  implied archetype. Rejected because it conflates two domains in one field (Rule 10) and
+  threatens Rule 6 determinism if any part of the name is ever derived from something
+  non-reproducible (formatted counters, disambiguation suffixes, spawn timestamps). A plain
+  integer counter has no such dependency.
+- A GUID or hash-based instance ID. Rejected for the same Rule 6 reason: not trivially
+  reproducible run-to-run, which would make two runs' entity-ID sequences unusable as a
+  determinism check even though gameplay itself would be unaffected.
+
+**Why this matters:** Phase 1's Definition of Done (`PHASES.md`) requires movement to resolve
+through the simulation layer and requires tests to run against the full configured grid "never
+a 1×1 or single-entity degenerate case" (Failure Mode 5) — both presuppose some entity concept
+occupying `FRTACTile.OccupantEntityId`, though neither DoD line names entity identity explicitly;
+this decision fills that gap rather than leaving it to be improvised inside movement-logic code,
+which is the exact Rule 8 risk pattern ("logic that never anticipated it") Phase 1's own Goal
+section already flags for elevation, one layer earlier in the same phase. `ArchetypeId` is
+reserved now, at the cost of one unused field, specifically so a future stats/AI-pattern lookup
+(Phase 3 HP/damage, Phase 4 AI) has a seam to plug into without a later struct rework — this
+mirrors the same reserved-but-inert pattern Phase 1's DoD already uses for the elevation slot.
+
+**Explicitly deferred:** The archetype lookup table itself (stat definitions, AI behavior
+mapping) is not built by this decision and is not Phase 1 scope — `ArchetypeId` is reserved
+unpopulated-in-practice (a placeholder value in Phase 1's own tests is sufficient) until Phase 3
+(HP/damage model) and Phase 4 (enemy AI) exist to consume it.
+
+**Addendum, August 30, 2026 (clarification):** The phrase "sourced from explicit seeded state
+per Rule 6" in this entry's `EntityId` bullet above is ambiguous and should be read narrowly.
+Rule 6 contains two independent clauses: (1) all per-match state, random or not, lives in an
+explicit struct with no hidden globals/statics; (2) RNG state specifically is seeded explicitly.
+`EntityId` engages clause (1) only — it is a plain incrementing counter, not a draw from any
+random stream, and no RNG stream seeds it. "Sourced from explicit seeded state" was intended to
+mean "lives in the explicit per-match state struct," not "derived from a seeded RNG." The
+original text is left unchanged per Rule 4; this addendum records the clarification so a future
+reader does not build an unneeded RNG stream behind the counter. Surfaced during CC/Opus's
+seeded-state-container design task on August 29, 2026.
+
+---
+
 
 
 ## Open Questions
@@ -238,4 +299,4 @@ Brainstormed directions, none locked, to revisit once the core loop is playable:
 
 ---
 
-*Last Updated: August 26, 2026*
+*Last Updated: August 30, 2026 — Decisions #1–#9 current, #9's clarification addendum included.*

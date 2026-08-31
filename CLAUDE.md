@@ -1,23 +1,35 @@
 # CLAUDE.md — FOR ATLANTIS (UE5 Project)
 
 ## Session Context
-**Last Updated:** August 26, 2026
+**Last Updated:** August 30, 2026
 **Engine:** Unreal Engine 5.8 (`EngineAssociation: "5.8"`, `IncludeOrderVersion: Unreal5_8`, RHI: DX12)
 **Development floor:** UE 5.8, hard requirement — not an API-compatibility choice but an
 agent-workflow dependency: CC/CC-Opus's live editor introspection (MCP) is a 5.8 Experimental
 feature, confirmed absent from 5.6 and 5.7 on this machine. See `docs/combat_decisions.md`
 Decision #7. RTAC's own *consumer* portability floor (what a project dropping RTAC in requires)
 is separate and still undetermined — see `docs/PHASES.md` Phase 8.
-**Phase:** Combat system design (pre-implementation). No combat code written yet.
+**Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation), `PARTIAL`. Phase 0 (Foundation &
+Test Harness) is `CLOSED`. Combat code exists and compiles — see Current state below.
 
-**Current state:** The project is still the stock UE5 Third Person template plus its three
-official variants (Combat / Platforming / SideScrolling), unmodified. All design work to date
-lives in `docs/combat_decisions.md` — Decisions #1–#7, two of them `OPEN` (#1, #3), the
-remaining five `N/A — design rationale, no action implied` (#2, #4, #5, #6, #7).
+**Current state:** The stock UE5 Third Person template plus its three official variants
+(Combat / Platforming / SideScrolling) remains unmodified. Alongside it, the RTAC plugin now
+holds real, compiling simulation code: `FRTACGridPosition`, `FRTACTile`, `ERTACSurfaceModifier`,
+`FRTACGrid` (grid/tile types, Phase 0), and `FRTACRngState`, `RTACDeriveStreamSeed`,
+`FRTACMatchState` (seeded-state groundwork, Phase 1 — Decision #9). Three UE Automation Tests
+exist and pass: `RTAC.Simulation.Grid.BasicLifecycle` (Phase 0), and
+`RTAC.Simulation.Rng.StreamSeedDerivation` / `RTAC.Simulation.Rng.MatchStateLifecycle`
+(Phase 1, confirmed passing August 30, 2026 — Session Frontend, Omar's pasted log, and an
+independent live MCP query all agree, 17/17 assertions). Movement, the entity struct itself, and
+multi-entity tests are still outstanding — see `docs/PHASES.md` Phase 1's Definition of Done for
+the authoritative list. All design work to date lives in `docs/combat_decisions.md` —
+Decisions #1–#9. Four `OPEN` (#1, #3, #8, #9), five `N/A — design rationale, no action implied`
+(#2, #4, #5, #6, #7).
 
-**Next milestone:** Build a faithful BN3-style combat core first and get it fully playable.
-Atlantis-specific modifications (starting with elevation, Decision #3) are layered on **after**,
-never designed simultaneously. See `docs/combat_decisions.md` → Open Questions → "Core BN3 Loop".
+**Next milestone:** Movement resolving through the simulation layer (Phase 1's largest
+outstanding item), which needs an entity struct built to Decision #9's shape first. Once Phase 1
+closes, Atlantis-specific modifications (starting with elevation, Decision #3) remain layered on
+**after** the base BN3 combat loop is fully playable, never designed simultaneously — see
+`docs/combat_decisions.md` → Open Questions → "Core BN3 Loop".
 
 ---
 

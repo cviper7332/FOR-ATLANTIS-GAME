@@ -223,6 +223,22 @@ commits `a6d34fb` and `ad1fe4b`); plus their downstream references in `CLAUDE.md
 it referenced, propagating the error a second time inside a single entry. None of it surfaced
 until the date was checked directly against the system clock rather than assumed.
 
+**Addendum, August 30, 2026:** A date correction made under this rule — replacing a stale or
+carried-forward date with a value from a fresh, live system-clock check in that same turn —
+does not require Omar's confirmation before landing. The live-checked value is authoritative by
+construction; asking Omar to re-approve it adds a round-trip the rule already resolved. This
+applies specifically to the date-correction itself, not to whatever content it's attached to —
+if the date sits inside a diff, a decision entry, or any other change that independently needs
+approval under Rule 1, 3, or 4, that approval is still required for the rest of the change. The
+date does not need separate sign-off within it.
+
+Caught (August 30, 2026): a drafted addendum carried an August 29 date from when it was written
+in conversation, rather than the August 30 date live at the time it was actually appended to the
+file. CC/Opus caught this and corrected it during the same write, per this rule's existing
+requirement to check rather than infer — then Claude (claude.ai) asked Omar to separately
+re-confirm a correction the rule had already authorized, an unnecessary round-trip this addendum
+removes.
+
 ---
 
 ### Rule 14 — A Phase Goal Must Fully Describe Its Definition of Done (Mandatory)
