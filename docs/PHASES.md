@@ -177,15 +177,20 @@ Rules 5, 6, 9, and 11 reviewed against the current simulation code and accepted.
 ## Goal
 
 By the end of this phase the combat board exists as a real, addressable data structure and
-entities move on it — entirely headlessly, with no renderer, no actor, and no editor involved at
-any point.
+entities move on it — entirely headlessly, with no renderer and no actor anywhere in the phase's
+code, and no simulation type depending on the editor. The editor appears in exactly one role, as
+a host: the tests run inside it as UE Automation Tests, per Phase 0's Test Harness section, which
+settled that there is no standalone non-UE5 build and none is to be created. What is under test
+is editor-independent; the runner is not, by design.
 
 The board is a grid of deliberately chosen dimensions, logged as its own Decision entry and stated
 rows×columns per Decision #5. Its tiles are plain structs built from UE Core value types, holding
 no `UObject*`/`AActor*` ownership, and every tile carries both a surface-modifier slot and an
 elevation slot that exists in the data model while remaining mechanically inert — reserved now so
 Phase 6 can add elevation without retrofitting it as a nested branch inside logic that never
-anticipated it (Rule 8).
+anticipated it (Rule 8). The surface-modifier slot is not entirely unpopulated here: it carries
+one value, `Broken`, pulled forward from Phase 3's list because this phase's own movement-legality
+check needs something real to compare against — see Resolves below.
 
 Movement resolves through the simulation layer and nowhere else: no presentation layer reads
 simulation state, and the simulation carries no dependency in the other direction. Grid
@@ -206,21 +211,40 @@ single-entity setup, either of which would collapse the very behaviour under tes
   (3 columns per side) but this project's dimensions are not required to match it.
 - **"Movement rules"** (Open Questions → Core BN3 Loop).
 
+**Absorbed from a later phase — a scope note, not an Open Question resolution.**
+`ERTACSurfaceModifier::Broken` is added in Phase 1 rather than Phase 3, authorized by Decision
+#10's August 31, 2026 addendum: Ruling 4's fourth clause ("not broken") is Phase 1's own stated
+concern and had no real value to check against. Phase 1 took the enum value only. Phase 3 keeps
+the rest of the list (ice, grass, lava, steel, poison, cracked) **and** keeps every modifier's
+resolution *effect*, `Broken`'s included — nothing here relaxes that deferral generally. The
+reasoning lives in the decision addendum and is not restated here.
+
 ## Definition of Done
 
 - [x] Grid dimensions chosen and logged as their own Decision entry, stated as rows×columns
       per Decision #5
-- [ ] Simulation types hold plain structs and UE Core value types (`TArray`, `TMap`, `FString`,
+- [x] Simulation types hold plain structs and UE Core value types (`TArray`, `TMap`, `FString`,
       etc. — permitted and preferred per Rule 5 Addendum #2); no `UObject*`/`AActor*`
       **ownership** in simulation state; grid coordinates are grid coordinates, not world
-      transforms
+      transforms — confirmed September 1, 2026 by grep across every RTAC source file: no
+      `UPROPERTY`/`UCLASS`/`USTRUCT`/`UENUM` anywhere in the tree, and every `UObject`/`AActor`
+      token in it sits inside a comment explaining that type's absence. `FRTACEntity::ArchetypeId`
+      is `FName` — a Core value type permitted by Rule 5 Addendum #2, flagged as such in its own
+      header so the `UObject/` include path does not read as a violation on review.
 - [x] Movement resolves through the simulation layer only; no presentation-layer read of
       simulation state and no reverse dependency (Rule 5)
-- [ ] The tile model carries a surface-modifier slot and an **elevation slot that exists but is
-      mechanically inert** — see note below
+- [x] The tile model carries a surface-modifier slot and an **elevation slot that exists but is
+      mechanically inert** — see note below. `FRTACTile::SurfaceModifier` and
+      `FRTACTile::Elevation` both exist; the modifier slot holds `None` and `Broken` (the latter
+      pulled forward from Phase 3 — see Resolves above), and `Elevation`'s inertness is confirmed
+      September 1, 2026 by grep: zero readers of the field in any `.cpp` in the plugin.
 - [ ] Same seed + same input sequence → identical resulting state, verified by test (Rule 6)
-- [ ] Grid ↔ world unit conversion does not exist yet in this phase (no presentation layer) —
-      confirmed by the absence of any such conversion in the simulation code (Rule 10)
+- [x] Grid ↔ world unit conversion does not exist yet in this phase (no presentation layer) —
+      confirmed by the absence of any such conversion in the simulation code (Rule 10).
+      Positively confirmed September 1, 2026: grep for `FVector`, `FTransform`, `WorldLocation`,
+      `ToWorld`, and `TileSize` across all RTAC source returns no hits. Re-run this at Phase Exit
+      Review rather than carrying the result forward — the item asserts an absence, and absences
+      regress silently.
 - [ ] Tests run against the full configured grid, never a 1×1 or single-entity degenerate case
       (Failure Mode 5)
 
@@ -248,6 +272,18 @@ single-entity setup, either of which would collapse the very behaviour under tes
 > DoD item's actual claim. A reader should take neither the passing derivation tests nor the
 > absence of live randomness as evidence this item is closed; it isn't, until the input-sequence
 > replay test exists.
+>
+> **Addendum, September 1, 2026 (the stated blocker is gone; the item is not).** The first
+> paragraph above explains this test's absence "because no movement code exists yet for such a
+> sequence to consist of." That reason is obsolete. `RTACCheckMoveLegality` landed in `c51027e`
+> (August 31, 2026) and `RTACResolveMove` in `c436334` (September 1, 2026); an input sequence now
+> has real move-events to consist of. The replay test is unblocked work, not blocked work. The
+> original text is left unchanged per Rule 4.
+>
+> **The item stays unchecked, and the second paragraph above still stands unaltered.** No replay
+> test exists. And its substantive point — that the seed-derivation tests verify the mechanism a
+> future stream will use, not this item's actual claim — is untouched by movement existing, so it
+> remains the reason those passing tests are not evidence here.
 
 ---
 
@@ -636,13 +672,40 @@ Re-evaluate the entire design if any of the following occur:
 - Safety Ruleset still holds under live re-read (Rule 2) — not assumed from an earlier phase's
   review
 
-### Test gate — pending
+### Test gate
 
-PRS's test gate is a concrete `ctest -L '^phase[0-N]$'` query. RTAC has no equivalent yet,
-because the exact UE Automation Test naming/tagging convention has not been decided (see Phase
-0's outstanding Part B items). **This is a live placeholder, not an oversight** — it is filled
-in once Phase 0 closes and the automation-test discovery/run procedure is documented in
-`CLAUDE.md`.
+PRS's test gate is a concrete `ctest -L '^phase[0-N]$'` query. RTAC's equivalent is a name-prefix
+filter over UE Automation Tests, run from the editor console:
+
+```
+Automation RunTests StartsWith:RTAC
+```
+
+Verified against local UE 5.8 source rather than assumed — all line references are to
+`Engine/Source/Developer/AutomationController/Private/AutomationCommandline.cpp`:
+`Automation RunTests <string>` is a registered console command (line 610, help text line 785),
+arguments split on `+`, and a `StartsWith:` argument builds a prefix-match filter, appending the
+trailing `.` when omitted (lines 149-163). The Session Frontend
+procedure in `CLAUDE.md` → "Running RTAC's Automation Tests" runs the same tests through the UI
+and is the path actually confirmed live (August 29, 2026); this console form is verified in
+source but has not itself been run.
+
+**This is not the phase-scoped query PRS's gate is, because no per-phase tag exists.** Test names
+follow `RTAC.Simulation.<Area>.<Case>` — `RTAC.Simulation.Grid.BasicLifecycle`,
+`RTAC.Simulation.Rng.StreamSeedDerivation`, `RTAC.Simulation.Rng.MatchStateLifecycle` — a
+convention established by practice across the three existing tests and **never logged as a
+decision**. It groups by subsystem, not by phase, so `StartsWith:RTAC` runs everything and cannot
+answer "did *this phase's* tests pass." Until a phase-tagging convention is decided and logged,
+that question is answered by the Phase Exit Review checking by hand that each of the phase's DoD
+test artifacts exists and passes.
+
+**Updated September 1, 2026.** This section previously read "Test gate — pending" and deferred
+itself until "Phase 0 closes and the automation-test discovery/run procedure is documented in
+`CLAUDE.md`," citing "Phase 0's outstanding Part B items." Both preconditions were met on
+August 29, 2026 — Phase 0 is `CLOSED` and every Part B item is checked, the last of them being
+the run procedure reaching `CLAUDE.md` — so the placeholder had outlived its own terms. What
+remains open is not a precondition but unlogged work: deciding a phase-tagging convention, which
+wants its own decision entry.
 
 ## Pre-Flight Checklist (Required Before Any Combat Stage, Balance Constant, or Test Oracle)
 

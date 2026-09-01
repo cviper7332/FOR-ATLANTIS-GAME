@@ -166,7 +166,7 @@ This also resolves the "Why this matters" paragraph's internal reference to *"Ru
 **Date:** August 26, 2026
 **Phase:** Combat system design (pre-implementation)
 **Author:** Omar
-**Status:** OPEN
+**Status:** PARTIAL — simulation-side dimensions enacted in `9286975` (`FRTACGrid` takes rows/columns as `Init()` parameters, `DefaultRows`/`DefaultColumns` = 3/6); OUTSTANDING: the presentation-layer wrapper exposing editable `Rows`/`Columns` in the Details panel (Phase 2)
 
 **Decision:** The combat grid defaults to **3 rows × 6 columns**, matching BN3's actual board exactly (per Decision #5's rows×columns convention). Dimensions are **not** a compile-time constant — rows and columns are configurable, exposed to the level author for editing in the UE5 Editor's Details panel, with 3×6 as the shipped default value.
 
@@ -182,6 +182,10 @@ This also resolves the "Why this matters" paragraph's internal reference to *"Ru
 
 **Addendum, August 28, 2026 (date correction):** This entry's `**Date:**` field above reads "August 26, 2026." That date is incorrect. Decision #8 was actually written and committed **August 28, 2026**, per commit `ad1fe4b` (2026-08-28 10:07). The original `**Date:**` field is left unchanged per Rule 4; this addendum records the correction. No internal reference within this entry restates another entry's date.
 
+**Addendum, September 1, 2026 (status transition — OPEN → PARTIAL):** This entry's `**Status:**` field above was changed from `OPEN` on this date. The simulation half of this decision is enacted: `FRTACGrid` takes rows and columns as plain integer `Init()` parameters and carries `DefaultRows = 3` / `DefaultColumns = 6` as `static constexpr` defaults, landed in commit `9286975` (August 28, 2026). The presentation half is not: the thin actor-or-component wrapper exposing `Rows`/`Columns` as `UPROPERTY(EditAnywhere)` integers in the Details panel does not exist, and cannot until a presentation layer does (Phase 2). Until it lands, this entry's headline claim — dimensions "exposed to the level author for editing in the UE5 Editor's Details panel" — is undelivered, which is why this reads `PARTIAL` and not `CLOSED — enacted`.
+
+**On amending `Status` in place at all** (applies equally to Decisions #9 and #10, transitioned the same date): this doc's format convention says `Status` is "set at creation (not backfilled)." That is read here as barring the retroactive invention of a status for an entry that never carried one — not as freezing the field for an entry's whole life. The controlled vocabulary's own `CLOSED — enacted in <commit>` and `PARTIAL` values cannot be written at creation time, since the commits they cite do not exist yet; a status field that could never change would make two of the six permitted values unreachable. Each transition is recorded in an addendum like this one rather than made silently, so the append-only record still shows what changed, when, and on what evidence. No original entry text is altered by any of the three.
+
 ---
 
 ## Decision #9 — Entity Identity: Plain Instance Counter, Separate from Archetype Key
@@ -189,7 +193,7 @@ This also resolves the "Why this matters" paragraph's internal reference to *"Ru
 **Date:** August 29, 2026
 **Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation)
 **Author:** Omar
-**Status:** OPEN
+**Status:** CLOSED — enacted in `43166da`, `6321472`, `1264631`
 
 **Decision:** An entity occupying a grid tile is identified by two separate fields, not one:
 
@@ -260,6 +264,23 @@ minimal entity is now `EntityId` + `Position` + `ArchetypeId` + `Side`.
 Surfaced during Decision #10 Ruling 4 implementation, when the movement-legality check's
 ownership clause had no entity-side value to check against.
 
+**Addendum, September 1, 2026 (status transition — OPEN → CLOSED):** This entry's `**Status:**`
+field above was changed from `OPEN` on this date. Every field this decision fixes now exists in
+`FRTACEntity` as specified — `EntityId` (`int32`, defaulting to `INDEX_NONE` so "never assigned"
+cannot alias the first real id), `Position`, `ArchetypeId` (`FName`), and `Side` per this entry's
+August 31, 2026 addendum — and the spawn-order counter lives in the explicit per-match state
+struct as `FRTACMatchState::NextEntityId`, where Rule 6's no-hidden-state clause requires it,
+with its `Initialize()`/`Reset()` behaviour covered by `RTAC.Simulation.Rng.MatchStateLifecycle`.
+
+**What `CLOSED` does not claim here.** The archetype lookup table remains deferred by this
+entry's own "Explicitly deferred" section: `ArchetypeId` is a reserved, unread field, and closing
+this decision starts none of Phase 3's or Phase 4's work on consuming it. Separately, no
+production code yet draws an id from `NextEntityId` — the counter is exercised only by its own
+test, because no entity-spawn path exists to consume it. That is downstream implementation this
+decision governs but does not itself require, so it is stated here rather than carried as an
+`OUTSTANDING` clause; every ruling the entry actually makes is enacted. See Decision #8's
+addendum of the same date on amending `Status` in place.
+
 ---
 
 ## Decision #10 — Movement Rules: Discrete Step, Mutable Ownership, Reusable Legality Check
@@ -267,7 +288,7 @@ ownership clause had no entity-side value to check against.
 **Date:** August 30, 2026
 **Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation)
 **Author:** Omar
-**Status:** OPEN
+**Status:** CLOSED — enacted in `c51027e`, `5231eac`, `1264631`, `1c27877`, `c436334`
 
 **Decision:** Movement resolves as one discrete tile-step per input event, validated against a
 reusable legality check with four separable clauses, against a grid whose per-tile ownership is
@@ -456,6 +477,36 @@ clause has something real to check. Nothing else in the eventual full modifier l
 lava, steel, poison, cracked) is added by this addendum, and Phase 3's scope over the rest of
 that list is unchanged — `Broken` is added specifically because movement-legality checking is
 Phase 1's own stated concern, not because Phase 3's deferral is being relaxed generally.
+
+**Addendum, September 1, 2026 (status transition — OPEN → CLOSED):** This entry's `**Status:**`
+field above was changed from `OPEN` on this date. Every ruling that commits to code has landed,
+and the three that commit to none are satisfied by construction:
+
+- **Ruling 1** (discrete one-tile step per input) — `RTACResolveMove` applies exactly one discrete
+  step. No continuous position, no sub-tile interpolation, no tick-rate concept exists anywhere in
+  the simulation layer. The input layer that generates the steps is Phase 2 presentation work, not
+  this ruling's.
+- **Ruling 2** (movement-speed modifiers are presentation-only) — commits explicitly to no
+  simulation-layer field and no hook. Confirmed: neither exists.
+- **Ruling 3** (per-tile ownership, externally assigned) — `FRTACTile::Owner` and `ERTACTileOwner`
+  in `5231eac`, with the entity-side counterpart `FRTACEntity::Side` in `1264631`. Ownership is a
+  stored per-tile field, never computed from `Rows`/`Columns`. The authoring interface is out of
+  scope by this ruling's own text and is not implied by this closure.
+- **Ruling 4** (separable four-clause legality check) — `RTACCheckMoveLegality` in `c51027e`, the
+  `Broken` value its fourth clause compares against in `1c27877` (per this entry's August 31, 2026
+  addendum), and `RTACResolveMove` in `c436334`. The four clauses are separately named values on
+  `ERTACMoveLegality`, not a collapsed boolean, as the ruling requires.
+- **Rulings 5 and 6** (per-entity overrides; Step-Sword-style reach attacks) — both commit
+  explicitly to no Phase 1 code, and none was written. Ruling 5's actual requirement is
+  structural — that the broken-tile clause be independently named, so an override can attach later
+  without restructuring the check — and it is met: the clause is its own `ERTACMoveLegality::Broken`
+  value.
+
+**What `CLOSED` does not claim here.** This means the entry's rulings are enacted, not that the
+mechanics it defers are built. The Area Grab-style territory-swap mechanism, any entity-modifier
+system (Air Shoes, hover), and any attack/chip/reach-attack system all remain deferred exactly as
+this entry's project-wide deferral summary states. See Decision #8's addendum of the same date on
+amending `Status` in place.
 
 ---
 

@@ -113,9 +113,18 @@ MCP tool usage on August 26, 2026, not a manual decision).
 **Purpose:** RTAC — realtime arena action strategic combat system: grid-based combat, built as a
 self-contained plugin so it can be dropped into future UE5 projects. See `RTAC.uplugin` for the
 canonical description.
-**Current state:** Scaffolded only — module boilerplate exists (`RTAC.Build.cs`,
-`RTACModule.h`/`.cpp`), no gameplay code yet, not yet registered as a dependency in
-`ProjectAtlantis.Build.cs`.
+**Current state:** No longer scaffold-only. RTAC is registered as a dependency in
+`ProjectAtlantis.Build.cs` (in `PublicDependencyModuleNames` — line 22 at time of writing) and
+holds real, compiling simulation code — grid and tile types, the entity struct, per-tile
+ownership, and the movement-legality check and its resolution — alongside the original module
+boilerplate (`RTAC.Build.cs`, `RTACModule.h`/`.cpp`).
+**Detailed status is deliberately not restated here.** Session Context at the top of this file is
+the single authoritative current-state summary — phase, what compiles, which tests pass, what is
+outstanding — and `docs/PHASES.md` governs phase status. This line says only what *kind* of code
+the plugin now contains. Keeping it that way is the point: this line previously claimed the
+plugin was scaffold-only with nothing registered, contradicting Session Context roughly a hundred
+lines above it in this same file, and went unnoticed because it duplicated a fact that had a
+second home.
 **Governing rule:** Per `docs/AGENTS.md` Rule 11, all combat-specific code (grid, tiles,
 movement, damage resolution, combat UI/actors) must live inside this plugin, not in the main
 `Source/ProjectAtlantis/` module.
