@@ -513,4 +513,90 @@ Brainstormed directions, none locked, to revisit once the core loop is playable:
 
 ---
 
-*Last Updated: August 30, 2026 — Decisions #1–#9 current, #9's clarification addendum included.*
+### Entity Allegiance Change — Mid-Battle Defection to a Third Party (post-core, speculative)
+
+**Not a BN3 mechanic.** Confirmed against source material (Omar): in the mainline games, tile
+ownership and entity side are always exactly Player or Enemy — no third faction, no mid-battle
+allegiance change, ever. This entire entry is a deliberate departure this project is considering,
+not a gap in BN3 knowledge. If pursued, it would need its own numbered Decision entry and its own
+Mechanical Fidelity Standard justification (`PHASES.md`), the same treatment Decision #3
+(elevation) already received as this project's first deliberate BN3 departure.
+
+**The idea:** an enemy entity can be authored to switch its `Side` from Enemy to `Neutral`
+mid-battle, for narrative reasons — Omar's example: fighting three enemies, and one of them
+defects to Neutral once specific story conditions are met, becoming neither the player's ally
+nor the original enemy group's.
+
+**Explicitly not player/enemy-controllable.** This is not a chip, not a button, not an input
+combo, not anything either combatant can trigger or choose. It is authored — triggered by
+whatever narrative/condition system decides it happens (undesigned; possibly a PHIS-adjacent
+concern, though Decision #2's PHIS/combat decoupling would need explicit reconsideration if so,
+not silently bridged). No player agency initiates a defection; it happens *to* the battle, not
+*by* a participant's action within it.
+
+**Why this needs its own entry, not silent extrapolation from Decision #9's `Side` field:**
+`FRTACEntity::Side` (added by Decision #9's August 31, 2026 addendum) was scoped as a static,
+spawn-time identity field — "set once at spawn and does not change during a match," matching the
+identity character of `EntityId`/`ArchetypeId` rather than the movement-state category Decision
+#9 originally excluded. This idea directly contradicts that: it requires `Side` to be mutable
+mid-match, for at least one specific authored case. That is not something Decision #9's addendum
+anticipated or permits as written — pursuing this idea means revisiting that addendum's "does not
+change during a match" clause, explicitly, not assuming it already allows for an exception.
+
+**The tile-ownership consistency problem this surfaces — a real mechanical requirement, not a
+detail:**
+
+If Enemy 3 flips from `Enemy` to `Neutral` while physically standing on a tile whose `Owner` is
+still `Enemy`, Decision #10 Ruling 4's clause 3 (owned by the mover's side) now considers that
+entity's own current position illegal — not because of anything it did, but because its side
+changed out from under it while its position stayed fixed. This is a real contradiction the
+legality check would surface, not a cosmetic issue: `RTACCheckMoveLegality`'s clause 3 implicitly
+assumes an entity's current tile always agrees with its own side, and nothing before this idea
+was ever proposed had reason to question that assumption.
+
+**Proposed resolution, stated as a rule rather than left implicit:** for the specific tile an
+entity currently occupies, the entity's `Side` is authoritative, and the tile's `Owner` is kept
+in sync with it. Concretely: the moment Enemy 3's `Side` becomes `Neutral`, the tile beneath it
+also becomes `Neutral`, as part of the same authored event — not as a separate, potentially
+out-of-sync step. This is not proposed as "the tile becomes Neutral because Neutral tiles are
+allowed generally" (they are not — see the correction below); it is proposed narrowly, as a
+direct, atomic consequence of an entity's own authored side-change, scoped to that one tile only.
+
+**Interaction with the tile-`Neutral`-as-default correction (RTACTileOwner.h's own header
+comment, corrected same date):**
+this does not reopen or weaken that correction. That correction addressed `Neutral` appearing as
+an *unauthored default* — a tile nobody assigned real ownership to, which real BN3 tiles never
+are. This idea's tile-Neutral state is the opposite: a *deliberately authored*, narratively
+triggered event with a specific cause and a specific single tile affected. The two are not in
+tension; they concern different origins of the same enum value.
+
+**Player-facing legibility — Omar's own concern, recorded rather than resolved:** if Enemy 3
+still *looks* like an ordinary enemy at the moment it defects, the player has no visual cue that
+its allegiance has changed. Omar's own proposed partial answer: the tile-ownership sync above
+already provides one cue for free, before any character-model change exists — the ground itself
+visibly shifting ownership (territory boundary/tile coloring changing) at the moment of defection
+is a signal in its own right, potentially a stronger and more BN3-native one than a character
+reskin, since it uses a visual language (tile color = ownership) the game already teaches the
+player from the very first battle. Whether this is sufficient on its own, or needs to be paired
+with an actual visual change to the entity itself, is unresolved — flagged as a presentation-layer
+question for whenever this idea is actually pursued, not decided here.
+
+**Explicitly deferred, in full:**
+- The trigger/condition system that would cause a defection (narrative logic, PHIS-adjacent or
+  not — undecided, and not to be assumed without revisiting Decision #2).
+- Whether `FRTACEntity::Side` becomes mutable mid-match at all, and if so, under what governance
+  (only via this specific authored mechanism, presumably — not opened as general mutable state).
+- The presentation-layer question above (tile-sync-only vs. tile-sync-plus-entity-visual-change).
+- Whether a defected-to-Neutral entity can subsequently be attacked, targeted, or interacted with
+  by either original side, and under what rules — entirely unspecified.
+- Whether this ever needs to support more than one simultaneous third party, or is scoped to
+  exactly one "Neutral" bucket.
+
+**Status of this entry:** speculative and unscoped beyond what's written above. Not blocking any
+current Phase 1 work — Phase 1's `FRTACEntity::Side` remains static per Decision #9's addendum
+until and unless this idea is formally decided, which would require its own numbered Decision
+entry, not an extrapolation from this Open Question.
+
+---
+
+*Last Updated: August 31, 2026 — Decisions #1–#10 current, #9's clarification addendum included.*
