@@ -467,8 +467,8 @@ Phase 1's own stated concern, not because Phase 3's deferral is being relaxed ge
 
 ### Core BN3 Loop (build first)
 
-- Exact grid dimensions (stick with BN3's 3x6, or adjust?)
-- Movement rules (free movement within your side vs. tile-by-tile step, cooldowns)
+- ~~Exact grid dimensions~~ — resolved, see Decision #8.
+- ~~Movement rules~~ — resolved, see Decision #10.
 - Buster/basic attack implementation
 - Chip-equivalent resource system — see "Chip/Folder Replacement" below
 - Turn/round structure (BN3 uses real-time with a Custom Screen pause for selecting chips — confirm whether this is kept as-is)
