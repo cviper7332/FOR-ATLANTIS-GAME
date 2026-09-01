@@ -4,12 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "Simulation/RTACGridPosition.h"
+#include "Simulation/RTACTileOwner.h"
 
 /**
- * One entity on the combat grid — the minimal occupant, per Decision #9.
+ * One entity on the combat grid — the minimal occupant, per Decision #9 and its August 31, 2026
+ * addendum.
  *
- * Decision #9 fixes this shape exactly: instance identity, position, and archetype key are three
+ * Decision #9 fixes this shape: instance identity, position, and archetype key are three
  * separate fields, and identity is never merged with archetype into a single descriptive name.
+ * Its August 31, 2026 addendum adds a fourth — Side — closing a gap Decision #10 Ruling 4
+ * exposed: the movement-legality check's ownership clause needs to know which side an entity
+ * belongs to, and nothing in the original three fields provided that.
  *
  * SCOPE — PHASE 1, DATA ONLY. This is the type; nothing here spawns entities, moves them, or
  * resolves anything about them. Movement rules are still an open design question in
@@ -53,6 +58,25 @@ struct FRTACEntity
 	 * units is a presentation-layer concern and happens at exactly one named boundary there.
 	 */
 	FRTACGridPosition Position;
+
+	/**
+	 * Which side this entity belongs to — Player, Enemy, or Neutral.
+	 *
+	 * Added by Decision #9's August 31, 2026 addendum, not by the original decision. Decision
+	 * #9's text explicitly excluded "no facing, no speed, no cooldown, no movement state" —
+	 * that exclusion targeted turn-to-turn movement/animation state, not identity. Side is
+	 * identity: set once at spawn and unchanging for the rest of the match, the same character
+	 * as EntityId and ArchetypeId, not the movement-state category the original text ruled out.
+	 *
+	 * Reuses ERTACTileOwner rather than introducing a second, parallel enum — one type answers
+	 * "which side" for both a tile and an entity, so the movement-legality check's ownership
+	 * clause (Decision #10 Ruling 4) compares like against like without a conversion step.
+	 *
+	 * Defaults to Neutral, the same sentinel-and-real-value default ERTACTileOwner::Owner uses
+	 * on FRTACTile — an entity that hasn't been assigned a side yet reports Neutral rather than
+	 * silently aliasing to Player or Enemy.
+	 */
+	ERTACTileOwner Side = ERTACTileOwner::Neutral;
 
 	/**
 	 * What KIND of entity this is — a lookup key into a future stats/behavior table.

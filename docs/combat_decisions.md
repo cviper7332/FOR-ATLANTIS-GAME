@@ -243,6 +243,23 @@ original text is left unchanged per Rule 4; this addendum records the clarificat
 reader does not build an unneeded RNG stream behind the counter. Surfaced during CC/Opus's
 seeded-state-container design task on August 29, 2026.
 
+**Addendum, August 31, 2026 (scope gap closed):** Decision #9's original text fixed
+FRTACEntity's shape as EntityId + Position + ArchetypeId and stated the entity carries "no
+facing, no speed, no cooldown, no movement state." That exclusion was aimed at turn-to-turn
+movement/animation state, not at identity — and it left a real gap: Decision #10 Ruling 4's
+ownership clause requires knowing "the entity's side" (Player/Enemy), and nothing in Decision
+#9 provides that value. `ArchetypeId` cannot stand in for it — side and archetype are
+independent axes (a given archetype is not inherently one side or the other).
+
+This addendum adds a fourth field: `Side` (same enum family as `FRTACTile::Owner`,
+`ERTACTileOwner`, or a compatible type — implementer's call on exact shape). `Side` is set once
+at spawn and does not change during a match, matching the "identity, not state" character of
+`EntityId` and `ArchetypeId` rather than the movement-state category Decision #9 excluded. The
+minimal entity is now `EntityId` + `Position` + `ArchetypeId` + `Side`.
+
+Surfaced during Decision #10 Ruling 4 implementation, when the movement-legality check's
+ownership clause had no entity-side value to check against.
+
 ---
 
 ## Decision #10 — Movement Rules: Discrete Step, Mutable Ownership, Reusable Legality Check
