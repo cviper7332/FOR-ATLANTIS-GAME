@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Simulation/RTACGridPosition.h"
 #include "Simulation/RTACSurfaceModifier.h"
+#include "Simulation/RTACTileOwner.h"
 
 /**
  * One tile of the combat grid.
@@ -34,6 +35,22 @@ struct FRTACTile
 
 	/** Surface modifier on this tile. Only None exists at Phase 1 — see ERTACSurfaceModifier. */
 	ERTACSurfaceModifier SurfaceModifier = ERTACSurfaceModifier::None;
+
+	/**
+	 * Which side this tile belongs to — Player, Enemy, or Neutral.
+	 *
+	 * EXTERNALLY ASSIGNED, PER DECISION #10 RULING 3 — NOT COMPUTED FROM Rows/Columns. Nothing
+	 * in FRTACGrid or FRTACTile derives this from a symmetric-split assumption; it is set per
+	 * tile by whoever configures a battle. That assignment mechanism is not built here — see
+	 * ERTACTileOwner's own header for the full reasoning (Liberation Mission-style asymmetric
+	 * starts are real BN3 mechanics, not a hypothetical).
+	 *
+	 * Defaults to Neutral, matching a default-constructed FRTACTile until a battle setup step
+	 * assigns real ownership. This is the "ownership" clause Decision #10 Ruling 4's future
+	 * movement-legality check will read — reading it before assignment is what Neutral
+	 * correctly reports, not an error state.
+	 */
+	ERTACTileOwner Owner = ERTACTileOwner::Neutral;
 
 	/**
 	 * Discrete elevation level of this tile.
