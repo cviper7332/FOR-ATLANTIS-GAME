@@ -44,7 +44,7 @@ resolution effect) is not acceptable.
 | Phase | Description | Status |
 |---|---|---|
 | 0 | Foundation & Test Harness | `CLOSED — enacted in 9286975, c5527ca, 3df1fed` |
-| 1 | Grid & Movement (Headless Simulation) | `PARTIAL — grid and tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9); OUTSTANDING: movement, entities, determinism and multi-entity tests` |
+| 1 | Grid & Movement (Headless Simulation) | `PARTIAL — grid/tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9), entity struct built (Decision #9 + Side addendum), tile ownership added (Decision #10 Ruling 3), movement rules fully specified (Decision #10), movement-legality check implemented (Decision #10 Ruling 4); OUTSTANDING: movement resolution (applying a legal move), determinism test, multi-entity tests` |
 | 2 | Presentation & First Playable Board | `OPEN` |
 | 3 | Attacks, HP/Damage & Tile Modifiers | `OPEN` |
 | 4 | Enemies & AI | `OPEN` |
@@ -172,7 +172,7 @@ Rules 5, 6, 9, and 11 reviewed against the current simulation code and accepted.
 
 # Phase 1 — Grid & Movement (Headless Simulation)
 
-**Status:** `PARTIAL — grid and tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9); OUTSTANDING: movement, entities, determinism and multi-entity tests`
+**Status:** `PARTIAL — grid/tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9), entity struct built (Decision #9 + Side addendum), tile ownership added (Decision #10 Ruling 3), movement rules fully specified (Decision #10), movement-legality check implemented (Decision #10 Ruling 4); OUTSTANDING: movement resolution (applying a legal move), determinism test, multi-entity tests`
 
 ## Goal
 
