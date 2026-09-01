@@ -1,7 +1,7 @@
 # CLAUDE.md — FOR ATLANTIS (UE5 Project)
 
 ## Session Context
-**Last Updated:** August 31, 2026
+**Last Updated:** September 1, 2026
 **Engine:** Unreal Engine 5.8 (`EngineAssociation: "5.8"`, `IncludeOrderVersion: Unreal5_8`, RHI: DX12)
 **Development floor:** UE 5.8, hard requirement — not an API-compatibility choice but an
 agent-workflow dependency: CC/CC-Opus's live editor introspection (MCP) is a 5.8 Experimental
@@ -17,22 +17,24 @@ holds real, compiling simulation code: `FRTACGridPosition`, `FRTACTile` (now wit
 Decision #10 Ruling 3), `ERTACSurfaceModifier` (now with `Broken`), `ERTACTileOwner`, `FRTACGrid`
 (Phase 0/1), `FRTACRngState`, `RTACDeriveStreamSeed`, `FRTACMatchState` (seeded-state
 groundwork, Decision #9), `FRTACEntity` (`EntityId`/`Position`/`ArchetypeId`/`Side` — Decision #9
-and its addenda), and `RTACCheckMoveLegality` (Decision #10 Ruling 4's four-clause legality
-check, returning a named result rather than a bare bool). Three UE Automation Tests exist and
-pass: `RTAC.Simulation.Grid.BasicLifecycle` (Phase 0), and
+and its addenda), `RTACCheckMoveLegality` (Decision #10 Ruling 4's four-clause legality check),
+and `RTACResolveMove` (applies a legal move — position update, occupancy swap on both tiles;
+re-validates internally rather than trusting a caller's prior check; hard-fails via
+`InvalidOrigin` on an off-grid mover rather than applying anyway). Three UE Automation Tests
+exist and pass: `RTAC.Simulation.Grid.BasicLifecycle` (Phase 0), and
 `RTAC.Simulation.Rng.StreamSeedDerivation` / `RTAC.Simulation.Rng.MatchStateLifecycle` (Phase 1,
-17/17 assertions, three-way confirmed August 30, 2026). Movement *resolution* (actually applying
-a legal move — position update, occupancy swap), the determinism test, and multi-entity tests
-remain outstanding. All design work lives in `docs/combat_decisions.md` — Decisions #1–#10, plus
-a speculative Open Question (mid-battle entity-defection to a third party, not Phase 1 scope).
+17/17 assertions, three-way confirmed August 30, 2026). The determinism test and multi-entity
+tests remain outstanding — both were blocked on movement resolution existing, and now are not.
+All design work lives in `docs/combat_decisions.md` — Decisions #1–#10, plus a speculative Open
+Question (mid-battle entity-defection to a third party, not Phase 1 scope).
 
-**Next milestone:** Movement resolution — applying a move that `RTACCheckMoveLegality` has
-already confirmed legal (update `FRTACEntity::Position`, clear/set `OccupantEntityId` on the old
-and new tiles). This is the last piece blocking both the determinism test and multi-entity tests,
-Phase 1's two remaining Definition of Done items with no code behind them yet. Once Phase 1
-closes, Atlantis-specific modifications (starting with elevation, Decision #3) remain layered on
-**after** the base BN3 combat loop is fully playable, never designed simultaneously — see
-`docs/combat_decisions.md` → Open Questions → "Core BN3 Loop".
+**Next milestone:** The determinism test (same seed + same input sequence → identical resulting
+state, Rule 6) and multi-entity tests (Failure Mode 5 — never a 1×1 or single-entity degenerate
+case) — Phase 1's two remaining Definition of Done items with no test artifact behind them yet,
+both now unblocked by `RTACResolveMove`'s existence. Once Phase 1 closes, Atlantis-specific
+modifications (starting with elevation, Decision #3) remain layered on **after** the base BN3
+combat loop is fully playable, never designed simultaneously — see `docs/combat_decisions.md` →
+Open Questions → "Core BN3 Loop".
 
 ---
 
@@ -440,5 +442,7 @@ Cosmetic, but flag before shipping anything: `Config/DefaultGame.ini` still has
 
 ---
 
-*Last Updated: August 26, 2026*
-*Phase: Combat system design (pre-implementation) — Decisions #1–#3 logged, #1 and #3 OPEN*
+*Last Updated: September 1, 2026*
+*Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), PARTIAL — Decisions #1–#10
+logged, movement-legality check and resolution implemented; determinism and multi-entity
+tests outstanding.*

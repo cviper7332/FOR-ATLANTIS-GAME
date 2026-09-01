@@ -44,7 +44,7 @@ resolution effect) is not acceptable.
 | Phase | Description | Status |
 |---|---|---|
 | 0 | Foundation & Test Harness | `CLOSED — enacted in 9286975, c5527ca, 3df1fed` |
-| 1 | Grid & Movement (Headless Simulation) | `PARTIAL — grid/tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9), entity struct built (Decision #9 + Side addendum), tile ownership added (Decision #10 Ruling 3), movement rules fully specified (Decision #10), movement-legality check implemented (Decision #10 Ruling 4); OUTSTANDING: movement resolution (applying a legal move), determinism test, multi-entity tests` |
+| 1 | Grid & Movement (Headless Simulation) | `PARTIAL — grid/tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9), entity struct built (Decision #9 + Side addendum), tile ownership added (Decision #10 Ruling 3), movement rules fully specified (Decision #10), movement-legality check and resolution implemented (Decision #10 Ruling 4, RTACCheckMoveLegality + RTACResolveMove); OUTSTANDING: determinism test, multi-entity tests` |
 | 2 | Presentation & First Playable Board | `OPEN` |
 | 3 | Attacks, HP/Damage & Tile Modifiers | `OPEN` |
 | 4 | Enemies & AI | `OPEN` |
@@ -172,7 +172,7 @@ Rules 5, 6, 9, and 11 reviewed against the current simulation code and accepted.
 
 # Phase 1 — Grid & Movement (Headless Simulation)
 
-**Status:** `PARTIAL — grid/tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9), entity struct built (Decision #9 + Side addendum), tile ownership added (Decision #10 Ruling 3), movement rules fully specified (Decision #10), movement-legality check implemented (Decision #10 Ruling 4); OUTSTANDING: movement resolution (applying a legal move), determinism test, multi-entity tests`
+**Status:** `PARTIAL — grid/tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9), entity struct built (Decision #9 + Side addendum), tile ownership added (Decision #10 Ruling 3), movement rules fully specified (Decision #10), movement-legality check and resolution implemented (Decision #10 Ruling 4, RTACCheckMoveLegality + RTACResolveMove); OUTSTANDING: determinism test, multi-entity tests`
 
 ## Goal
 
@@ -214,7 +214,7 @@ single-entity setup, either of which would collapse the very behaviour under tes
       etc. — permitted and preferred per Rule 5 Addendum #2); no `UObject*`/`AActor*`
       **ownership** in simulation state; grid coordinates are grid coordinates, not world
       transforms
-- [ ] Movement resolves through the simulation layer only; no presentation-layer read of
+- [x] Movement resolves through the simulation layer only; no presentation-layer read of
       simulation state and no reverse dependency (Rule 5)
 - [ ] The tile model carries a surface-modifier slot and an **elevation slot that exists but is
       mechanically inert** — see note below
