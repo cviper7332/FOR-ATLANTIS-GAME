@@ -448,6 +448,15 @@ remains Phase 5 scope, per the same "chip-equivalent resource system... open unt
 exists to build against" deferral already governing chip-adjacent design in this document's Open
 Questions.
 
+**Addendum, August 31, 2026 (Broken value scoped exception):** Ruling 4's fourth clause ("not
+broken") requires comparing against a broken-tile value in `ERTACSurfaceModifier`, which per
+its own header is deliberately unpopulated beyond `None` until Phase 3. This addendum
+authorizes one narrow exception: `Broken` is added to `ERTACSurfaceModifier` now, so Ruling 4's
+clause has something real to check. Nothing else in the eventual full modifier list (ice, grass,
+lava, steel, poison, cracked) is added by this addendum, and Phase 3's scope over the rest of
+that list is unchanged — `Broken` is added specifically because movement-legality checking is
+Phase 1's own stated concern, not because Phase 3's deferral is being relaxed generally.
+
 ---
 
 
