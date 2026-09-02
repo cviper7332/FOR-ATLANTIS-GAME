@@ -1,7 +1,7 @@
 # CLAUDE.md — FOR ATLANTIS (UE5 Project)
 
 ## Session Context
-**Last Updated:** September 1, 2026
+**Last Updated:** September 2, 2026
 **Engine:** Unreal Engine 5.8 (`EngineAssociation: "5.8"`, `IncludeOrderVersion: Unreal5_8`, RHI: DX12)
 **Development floor:** UE 5.8, hard requirement — not an API-compatibility choice but an
 agent-workflow dependency: CC/CC-Opus's live editor introspection (MCP) is a 5.8 Experimental
@@ -15,29 +15,59 @@ Test Harness) is `CLOSED`. Combat code exists and compiles — see Current state
 (Combat / Platforming / SideScrolling) remains unmodified. Alongside it, the RTAC plugin now
 holds real, compiling simulation code: `FRTACGridPosition`, `FRTACTile` (now with `Owner`,
 Decision #10 Ruling 3), `ERTACSurfaceModifier` (now with `Broken`), `ERTACTileOwner`, `FRTACGrid`
-(Phase 0/1), `FRTACRngState`, `RTACDeriveStreamSeed`, `FRTACMatchState` (seeded-state
-groundwork, Decision #9), `FRTACEntity` (`EntityId`/`Position`/`ArchetypeId`/`Side` — Decision #9
+(Phase 0/1), `FRTACRngState`, `RTACDeriveStreamSeed`, `FRTACMatchState` (no longer just
+seeded-state groundwork — it is now the whole per-match container, holding RNG state, the
+entity-id counter, `FRTACGrid Grid`, and `TArray<FRTACEntity> Entities`, per Decision #11
+Ruling 1), `FRTACMatchState::FindEntity` (the only supported id-to-entity path; array index is
+deliberately **not** identity, Ruling 3), `RTACSpawnEntity` (the one place an entity is placed on
+the board, establishing the grid/entity consistency invariant `RTACResolveMove` assumes but never
+verifies, Ruling 4), `FRTACEntity` (`EntityId`/`Position`/`ArchetypeId`/`Side` — Decision #9
 and its addenda), `RTACCheckMoveLegality` (Decision #10 Ruling 4's four-clause legality check),
 and `RTACResolveMove` (applies a legal move — position update, occupancy swap on both tiles;
 re-validates internally rather than trusting a caller's prior check; hard-fails via
-`InvalidOrigin` on an off-grid mover rather than applying anyway). Three UE Automation Tests
-exist and pass — all three confirmed green on September 1, 2026 by a live `LogRTAC` read, against
-a DLL verified to postdate the source edits: `RTAC.Simulation.Grid.BasicLifecycle` (Phase 0,
-13/13 assertions) and `RTAC.Simulation.Rng.StreamSeedDerivation` /
-`RTAC.Simulation.Rng.MatchStateLifecycle` (Phase 1, 6/6 and 24/24 — **30/30 across the two**, up
-from the 17/17 recorded here previously, once `MatchStateLifecycle` was extended to cover the grid
-and entity storage Decision #11 added). The determinism test and multi-entity
-tests remain outstanding — both were blocked on movement resolution existing, and now are not.
-All design work lives in `docs/combat_decisions.md` — Decisions #1–#11, plus a speculative Open
+`InvalidOrigin` on an off-grid mover rather than applying anyway). **Four** UE Automation Tests
+exist and pass — all four confirmed green on September 1, 2026 by a live `LogRTAC` read, across
+**two independent runs**, against a DLL verified on disk to postdate every source edit by over an
+hour:
+
+| Test | Phase | Assertions |
+|---|---|---|
+| `RTAC.Simulation.Grid.BasicLifecycle` | 0 | 13/13 |
+| `RTAC.Simulation.Movement.MultiEntity` | 1 | 69/69 |
+| `RTAC.Simulation.Rng.MatchStateLifecycle` | 1 | 24/24 |
+| `RTAC.Simulation.Rng.StreamSeedDerivation` | 1 | 6/6 |
+
+Zero `[FAIL]` lines; exactly three `LogRTAC` warnings per run, all deliberately provoked by the
+multi-entity test (two spawn refusals, one `InvalidOrigin`). `MultiEntity` landed in `f1363b4`
+committed un-built, and that risk is now **closed** — it compiles and passes. It gives
+`RTACSpawnEntity` and `FindEntity` their first coverage, both having shipped untested in
+`6342e68`. **The multi-entity test is done; only the determinism test remains outstanding** of
+Phase 1's two.
+All design work lives in `docs/combat_decisions.md` — Decisions #1–#13, plus a speculative Open
 Question (mid-battle entity-defection to a third party, not Phase 1 scope).
 
-**Next milestone:** The determinism test (same seed + same input sequence → identical resulting
-state, Rule 6) and multi-entity tests (Failure Mode 5 — never a 1×1 or single-entity degenerate
-case) — Phase 1's two remaining Definition of Done items with no test artifact behind them yet,
-both now unblocked by `RTACResolveMove`'s existence. Once Phase 1 closes, Atlantis-specific
-modifications (starting with elevation, Decision #3) remain layered on **after** the base BN3
-combat loop is fully playable, never designed simultaneously — see `docs/combat_decisions.md` →
-Open Questions → "Core BN3 Loop".
+**Next milestone — one Phase 1 DoD item, plus one thing that is deliberately not one.** These are
+kept separate on purpose: a Definition of Done item gates the phase, an unenacted decision does
+not, and merging them into a single "remaining work" list would misreport what actually closes
+Phase 1.
+
+*The remaining DoD item — the determinism test* (same seed + same input sequence → identical
+resulting state, Rule 6). It is the last of Phase 1's seven Definition of Done items without a
+test artifact behind it; the multi-entity item that used to sit beside it is **closed**, satisfied
+by `RTAC.Simulation.Movement.MultiEntity` at 69/69. Carry forward the caveat already recorded in
+`docs/PHASES.md`: Phase 1 has no gameplay randomness, so the seed axis is currently inert, and
+this test will verify input-sequence replay determinism rather than the DoD line's full claim.
+A seed-axis control becomes possible only when the first RNG stream exists (Phase 4 or 5).
+
+*Outstanding, but not a DoD item — Decision #12's `NotAdjacent` enactment.* The adjacency rule is
+decided and logged; the code is not written. Nothing in Phase 1's Definition of Done requires it,
+so it does not gate the phase — it is design that landed in the log ahead of its implementation.
+Enacting it touches the enum, `RTACResolveMove`'s step 3, three doc comments, and one added case
+in the multi-entity test.
+
+Once Phase 1 closes, Atlantis-specific modifications (starting with elevation, Decision #3) remain
+layered on **after** the base BN3 combat loop is fully playable, never designed simultaneously —
+see `docs/combat_decisions.md` → Open Questions → "Core BN3 Loop".
 
 ---
 
@@ -462,7 +492,8 @@ Cosmetic, but flag before shipping anything: `Config/DefaultGame.ini` still has
 
 ---
 
-*Last Updated: September 1, 2026*
-*Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), PARTIAL — Decisions #1–#11
+*Last Updated: September 2, 2026*
+*Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), PARTIAL — Decisions #1–#13
 logged, movement-legality check and resolution implemented, match-state container and entity
-spawn landed (Decision #11); determinism and multi-entity tests outstanding.*
+spawn landed (Decision #11), multi-entity test green at 69/69; determinism test outstanding,
+and Decision #12's `NotAdjacent` enactment not yet written.*

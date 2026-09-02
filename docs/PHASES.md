@@ -245,8 +245,26 @@ reasoning lives in the decision addendum and is not restated here.
       `ToWorld`, and `TileSize` across all RTAC source returns no hits. Re-run this at Phase Exit
       Review rather than carrying the result forward — the item asserts an absence, and absences
       regress silently.
-- [ ] Tests run against the full configured grid, never a 1×1 or single-entity degenerate case
-      (Failure Mode 5)
+- [x] Tests run against the full configured grid, never a 1×1 or single-entity degenerate case
+      (Failure Mode 5) — satisfied by `RTAC.Simulation.Movement.MultiEntity`
+      (`Private/Tests/RTACMovementTest.cpp`, added in `f1363b4`), **69/69 assertions**, confirmed
+      green September 1, 2026 across two independent runs by a live `LogRTAC` read, against a DLL
+      verified on disk to postdate every source edit. It runs on the full default 3×6 board
+      (dimensions referenced from `FRTACGrid`, not restated) with four entities, two per side —
+      the smallest count producing same-side blocking, cross-boundary rejection, and that
+      rejection in both directions.
+      **What the run demonstrated, rather than what the test intends:** all six
+      `ERTACMoveLegality` outcomes were genuinely reached, not merely present in the source.
+      Clause 3 is live rather than inert — tile (1,2) returned `WrongOwner` for an Enemy mover and
+      `Legal` for a Player mover under otherwise identical conditions. Clause 4 was actually
+      reached — the broken tile sits inside the mover's own territory, so the result was `Broken`
+      and not `WrongOwner` pre-empting it. The documented resolver/checker asymmetry holds:
+      `RTACResolveMove` returned `InvalidOrigin` where `RTACCheckMoveLegality` returned `Legal` on
+      the same inputs. No-partial-application was asserted after every rejected move (mover
+      `Position` and both tiles' `OccupantEntityId` unchanged), and board consistency —
+      `Grid.FindTile(E.Position)->OccupantEntityId == E.EntityId` for every entity, the invariant
+      `RTACResolveMove` assumes but never verifies — after every successful one.
+      The test also gives `RTACSpawnEntity` and `FindEntity` their first coverage.
 
 > **On the inert elevation slot — this is not designing elevation early.** Decision #3 defers
 > elevation's *mechanical direction*, not its existence as a tile property; the decision's own
