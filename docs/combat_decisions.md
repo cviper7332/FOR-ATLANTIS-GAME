@@ -510,6 +510,231 @@ amending `Status` in place.
 
 ---
 
+## Decision #11 — Match-State Container and Entity Spawn: Array Storage, Id-Not-Index Identity, One Invariant Owner
+
+**Date:** September 1, 2026
+**Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation)
+**Author:** Omar
+**Status:** OPEN
+
+**Decision:** `FRTACGrid` and entity storage move inside `FRTACMatchState`, stored as a flat
+`TArray<FRTACEntity>`; array index is explicitly **not** entity identity, and lookup by
+`EntityId` is provided so no caller has cause to assume otherwise; and a single spawn function
+becomes the one place an entity is placed on the board, establishing the grid/entity consistency
+invariant that `RTACResolveMove` currently assumes without confirming. Four sub-rulings, plus one
+boundary this decision deliberately does not cross.
+
+**1. `FRTACGrid` and entity storage live inside `FRTACMatchState`, wired in as their own change
+before either Phase 1 test is written.**
+
+Rule 6 requires this independently of any test: "All per-match temporal state lives in an explicit
+state struct, passed in and out each tick by the caller." Entity positions and tile occupancy are
+per-match temporal state — they change during a match — so holding them as loose locals in a
+caller is the hidden-state shape Rule 6 exists to prevent. `RTACMatchState.h`'s own scope note
+already committed to this: "Grid and entity storage join this struct as Phase 1's movement work
+lands; they are deliberately not wired in yet rather than being speculatively arranged now." That
+condition is now met.
+
+**Three options were considered, and the third is chosen:**
+
+- **(A) Wire into `FRTACMatchState`.** Rule 6 mandates it; the header promised it; and Phase 1's
+  determinism Definition of Done item says "identical resulting **state**," a sentence that is
+  only honest if match state is one real object. Against: it is a container-shape decision made
+  with a test as the proximate trigger.
+- **(B) A test-local container.** Commits to no production API, and lets the shape be decided when
+  a real tick function exists to constrain it. Rejected: Rule 6 puts this state in the struct
+  regardless, so (B) defers a required change rather than avoiding one, the tests get rewritten
+  when it lands, and `NextEntityId` keeps having no consumer for another phase. It also weakens
+  the determinism oracle — a test comparing its own bookkeeping rather than what the simulation
+  owns is measuring the wrong thing (Failure Mode 3).
+- **(C) (A), done as its own commit with this decision entry, landing before the tests.** Chosen.
+  Same outcome as (A), but the architectural decision gets reviewed on its own merits instead of
+  arriving inside a test commit where it would read as test scaffolding.
+
+**Cost, stated plainly:** `FRTACMatchState` stops being cheap to copy once it holds a tile array.
+For Phase 1's determinism test this is a *feature* — snapshot-and-compare across two runs is
+exactly the operation wanted, and a struct that copies its whole board is what makes it one line
+instead of a manual deep copy. For a future per-tick copy it would not be a feature. Nothing in
+Phase 1 copies match state per tick, and nothing should be built that does without revisiting this.
+
+**2. Entity storage is `TArray<FRTACEntity>`, not `TMap<int32, FRTACEntity>`.**
+
+This applies an existing project convention rather than inventing one. `RTACGrid.h`'s tile-storage
+comment already made this exact argument for `TArray<FRTACTile>`, and reason 3 transfers verbatim:
+"One unambiguous iteration order, which Rule 6's same-seed-same-result determinism requirement
+depends on."
+
+`TMap` iteration order is not a stable contract across runs, builds, or platforms. Resting a
+determinism guarantee on it would be precisely the hidden dependency Rule 6 targets — and worse,
+it would fail *intermittently and unreproducibly*, which is the failure mode Rule 6's "treat any
+divergence as a bug in this rule, not a curiosity" clause is written against. The keyed lookup a
+map would buy is provided by Ruling 3 instead, at a cost this project's entity counts make
+irrelevant.
+
+**3. Array index is not entity identity. Callers look entities up by `EntityId`, and the
+index-equals-id coincidence is documented as a coincidence.**
+
+With ids handed out `0, 1, 2, …` (Decision #9) and nothing ever removed in Phase 1, array index
+happens to equal `EntityId` today. **This must not be encoded as an invariant, relied on in call
+sites, or used for arithmetic.** It breaks the first time an entity is removed mid-match, and by
+then it will have spread silently through every call site that found it convenient — each one
+individually correct at the time it was written, collectively a rewrite.
+
+**Resolution — both halves, deliberately, not either alone:**
+
+- A lookup by `EntityId` is provided on `FRTACMatchState`, returning `nullptr` when no such entity
+  exists. This matches `FRTACGrid::FindTile()`'s existing convention exactly — same
+  nullptr-on-absence contract, same const and non-const overload pair — so the shape is already
+  familiar in this tree rather than novel.
+- The contract "index is not id" is stated in the header, at the storage field.
+
+The documented contract alone would be insufficient: a caller told not to assume index-equals-id,
+and given no correct alternative, writes the index arithmetic anyway. The accessor alone would be
+insufficient: without the stated contract, the first caller who notices the coincidence bypasses
+the accessor "for speed." The pair closes both paths.
+
+**Why this is decided now rather than when removal lands:** the cost of deciding it now is one
+accessor and one header sentence. The cost of deciding it later is auditing every call site
+written in between. This is the same reasoning Decision #10 Ruling 4 applied to the legality
+check's separable clauses — shape decided while it is free, rather than discovered under pressure
+once something depends on the wrong shape.
+
+**Performance note, not a deferral:** the lookup is a linear scan. At Phase 1's entity counts
+(single digits on an 18-tile board) this is not measurable. If entity counts ever grow to where it
+matters, the correct fix is an id-to-index side map maintained by spawn and despawn — never
+callers reintroducing index arithmetic. That map is not built here.
+
+**4. `RTACSpawnEntity(FRTACMatchState&, Position, Side, ArchetypeId)` becomes the one place an
+entity is placed on the board.**
+
+This enacts semantics Decision #9 already specified — `EntityId` "assigned from
+`FRTACMatchState::NextEntityId` in spawn order (0, 1, 2, ...)" — rather than deciding anything new
+about identity. What is new is giving that assignment a home, and with it, an owner for an
+invariant that currently has none.
+
+**The gap this closes, found during test design and not asked for.** `RTACResolveMove`'s step 1
+clears the origin tile unconditionally:
+
+> `OriginTile->OccupantEntityId = INDEX_NONE;`
+
+It never confirms the origin tile actually held *the entity being moved*. In intended use this is
+correct, and the function is not being called buggy: the invariant
+`Grid.FindTile(E.Position)->OccupantEntityId == E.EntityId` does hold for every well-formed entity.
+But **nothing establishes that invariant** — no code path sets `Entity.Position` and the tile's
+`OccupantEntityId` together — and **nothing enforces it**. A setup that gets it wrong silently
+clears a *different* entity's occupancy and corrupts the board with no error, no log line, and no
+failed check. Both Phase 1 tests sit directly on top of this invariant.
+
+Folding spawn into this commit rather than leaving it to the tests also avoids a concrete Failure
+Mode 7 drift: without it, the determinism test and the multi-entity test each hand-increment
+`NextEntityId` and each hand-write the two-field placement, duplicating spawn semantics across two
+files with no single source of truth. `FRTACMatchState`'s existing lifecycle test already
+hand-increments the counter, so this is a pattern that has started rather than one being predicted.
+
+**Sub-rulings on its behaviour:**
+
+- **Returns the new `EntityId`, or `INDEX_NONE` on failure**, matching the sentinel convention
+  `FRTACTile::OccupantEntityId` and `FRTACEntity::EntityId` already use throughout this tree. A
+  failure logs at `Warning` to `LogRTAC` (Rule 9), the same way `RTACResolveMove` already reports
+  `InvalidOrigin`.
+- **`NextEntityId` advances only on success.** This is load-bearing for Rule 6, not bookkeeping
+  tidiness: if a failed spawn consumed an id, two runs differing only in a failed spawn would
+  produce different id sequences for every entity after it, and every downstream comparison would
+  diverge for a reason unrelated to what was being tested.
+- **Spawn fails on an out-of-bounds position or an already-occupied tile.** Both would otherwise
+  break the invariant this function exists to establish — spawning onto an occupied tile
+  overwrites an existing occupant's claim.
+- **Spawn does not read or write tile ownership.** It sets the entity's `Side` and the tile's
+  occupancy, nothing else. Assigning `FRTACTile::Owner` is authoring, which is Decision #10
+  Ruling 3's explicitly deferred territory.
+- **Spawn does not check the tile's `Owner` against the entity's `Side`.** This asymmetry with
+  `RTACCheckMoveLegality` is deliberate: movement legality governs movement, not placement, and
+  battle setup may legitimately place an entity anywhere the author intends. Noted as an
+  observation for whoever builds the authoring system: an entity placed inside opposing territory
+  is immobile by clause 3, since every neighbouring tile is opposing too. That is a property of
+  the placement, not a bug in the check, and this decision does not rule on whether the authoring
+  layer should prevent it.
+- **Declared in `RTACMatchState.h`, defined in `RTACMatchState.cpp`**, as a free function rather
+  than a member. This follows `RTACMovementLegality.h`'s stated precedent for `RTACResolveMove`:
+  the operation lives next to the state it advances, because "splitting them would put two halves
+  of one operation in two files with nothing else in either." A separate `RTACEntitySpawn.h/.cpp`
+  was the alternative and would also be defensible; it was not chosen because the counter being
+  consumed lives in `RTACMatchState`.
+
+**A boundary this decision respects and deliberately does not resolve.**
+
+Phase 1's tests need real tile ownership assigned — every `FRTACTile::Owner` and
+`FRTACEntity::Side` defaults to `Neutral`, so an unconfigured board makes every in-bounds,
+unoccupied, unbroken move `Legal` regardless of ownership, and clause 3 never fires. A test built
+on a default board would pass without exercising the clause it appears to exercise (Failure Mode 5,
+with Failure Mode 8's "an experiment that cannot fail is not evidence" sitting behind it).
+
+**The fixture that assigns ownership stays test-local, under `#if WITH_AUTOMATION_TESTS`, and is
+never promoted to plugin-public API.** This decision adds no ownership-assignment function to
+RTAC. Doing so would build the authoring mechanism Decision #10 Ruling 3 explicitly defers — and
+worse, any convenient shape for it (a symmetric column split) would bake in the assumption Ruling 3
+spends its length rejecting: mainline battles default to a symmetric 3×3/3×3 split, but Liberation
+Mission-style battles start asymmetric, and ownership "cannot be computed once from `Rows`/`Columns`
+and a hardcoded left-half/right-half split."
+
+This is recorded here as a constraint this decision is aware of and works within, not as a ruling
+it makes. Ruling 3 already owns it.
+
+**Rejected alternatives:**
+
+- **A test-local entity container (option B above).** Rejected per Ruling 1 — Rule 6 requires this
+  state in the explicit struct regardless, so it defers required work rather than avoiding it, and
+  it leaves the determinism test comparing its own bookkeeping instead of simulation-owned state.
+- **`TMap<int32, FRTACEntity>` storage.** Rejected per Ruling 2 — unstable iteration order is a
+  determinism dependency Rule 6 forbids, and the keyed lookup it buys is supplied by Ruling 3's
+  accessor at negligible cost.
+- **Documenting `index == EntityId` as a supported invariant.** Rejected per Ruling 3. It is true
+  today only because Phase 1 has no removal, and it fails silently and everywhere at once when
+  removal arrives.
+- **No spawn function; each test hand-assigns ids and placements.** Rejected per Ruling 4 — it
+  leaves the consistency invariant unowned and duplicates spawn semantics across test files
+  (Failure Mode 7).
+- **An `ERTACSpawnResult` enum mirroring `ERTACMoveLegality`'s named-clause shape.** Considered
+  seriously, since Decision #10 Ruling 4 argues at length against collapsing a multi-clause result
+  to a bare value. Rejected because that ruling's justification does not transfer: it named two
+  specific future consumers (Ruling 5's per-entity overrides, Ruling 6's attack-side reuse) that
+  each need one clause distinguished from the others. Spawn has two failure causes and no
+  identified consumer that needs to tell them apart; the `LogRTAC` warning carries the diagnostic
+  detail. If such a consumer appears, this is a small change made at that point with a real
+  requirement behind it.
+- **Changing `RTACResolveMove`'s signature to take `FRTACMatchState&`.** Rejected for now. With
+  grid and entities both inside the struct, callers pass two references into one object, which is
+  legal but slightly awkward. Taking the entity and grid separately is what keeps `RTACResolveMove`
+  a pure function over simulation values with no knowledge of match-state layout — the property
+  that makes it trivially testable. Noted as a seam, not a debt.
+
+**Why this matters:** this is the container shape both of Phase 1's two remaining Definition of
+Done items will be built directly on top of, and container shapes are cheap to choose and
+expensive to change once tests depend on them. Every ruling here is one that costs a line or two
+now and an audit later: whether iteration order is stable (Ruling 2) decides whether the
+determinism test means anything; whether index is identity (Ruling 3) decides whether entity
+removal is a localized change or a call-site sweep; and whether the grid/entity consistency
+invariant has an owner (Ruling 4) decides whether a malformed setup fails loudly or corrupts a
+board in silence. None of the three is urgent in the sense of blocking compilation, and all three
+are the kind of thing that is only ever decided once.
+
+**Explicitly deferred:**
+
+- **The tile-ownership authoring mechanism** — untouched, still Decision #10 Ruling 3's, and see
+  the boundary section above for why this entry adds no API toward it.
+- **Entity removal / despawn.** No removal exists in Phase 1. Ruling 3's id-not-index contract is
+  what makes adding it later a localized change; the removal semantics themselves (does the array
+  compact? does a removed id ever get reused?) are not decided here and need their own entry when
+  a phase needs them.
+- **An id-to-index acceleration map.** Not built. See Ruling 3's performance note for the
+  conditions that would justify it and the wrong fix to avoid.
+- **Tick order and simultaneity (Rule 7).** Phase 1's input sequences are a total order by
+  construction, so "which entity resolves first when two move in the same tick" never arises and
+  is not answered here. It becomes real when Phase 2's input layer lands, and wants its own
+  decision entry rather than being settled by whatever the first implementation happens to do.
+
+---
+
 
 
 ## Open Questions

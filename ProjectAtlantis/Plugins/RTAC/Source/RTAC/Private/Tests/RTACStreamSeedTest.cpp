@@ -5,6 +5,7 @@
 #if WITH_AUTOMATION_TESTS
 
 #include "RTACModule.h" // LogRTAC — Rule 9: dedicated category, never LogTemp.
+#include "Simulation/RTACGrid.h"
 #include "Simulation/RTACMatchState.h"
 #include "Simulation/RTACStreamSeed.h"
 
@@ -155,6 +156,8 @@ bool FRTACMatchStateLifecycleTest::RunTest(const FString& Parameters)
 		return bResult;
 	};
 
+	auto CheckTrue  = [&](const TCHAR* What, bool Value)                   { return Record(What, TestTrue(What, Value)); };
+	auto CheckFalse = [&](const TCHAR* What, bool Value)                   { return Record(What, TestFalse(What, Value)); };
 	auto CheckEqual = [&](const TCHAR* What, int32 Actual, int32 Expected) { return Record(What, TestEqual(What, Actual, Expected)); };
 
 	UE_LOG(LogRTAC, Log, TEXT("=== RTAC.Simulation.Rng.MatchStateLifecycle — starting ==="));
@@ -164,6 +167,8 @@ bool FRTACMatchStateLifecycleTest::RunTest(const FString& Parameters)
 	// --- Default construction ---
 	CheckEqual(TEXT("A default-constructed match state has master seed 0"), State.Rng.MasterSeed, 0);
 	CheckEqual(TEXT("A default-constructed match state has NextEntityId 0"), State.NextEntityId, 0);
+	CheckFalse(TEXT("A default-constructed match state has an uninitialised grid"), State.Grid.IsInitialized());
+	CheckEqual(TEXT("A default-constructed match state has no entities"), State.Entities.Num(), 0);
 
 	// --- Initialize sets the seed and zeroes the counter ---
 	State.Initialize(4242);
@@ -179,17 +184,49 @@ bool FRTACMatchStateLifecycleTest::RunTest(const FString& Parameters)
 
 	// --- Rule 6: Initialize() is standalone, not a patch over prior contents ---
 	// Called on a dirtied state, it must produce exactly the same result as on a fresh one —
-	// the counter must not carry over.
+	// nothing may carry over. EVERY member is dirtied first, not just the counter: a populated
+	// board, entities in the array, and an already-advanced counter (from the block above).
+	//
+	// Entities are added directly rather than through RTACSpawnEntity() deliberately. This test's
+	// subject is the state struct's lifecycle, and routing through spawn would let a spawn
+	// regression fail a test named for Initialize()/Reset(). Spawn earns its own coverage in the
+	// multi-entity movement test; the entities here only need to exist, not to be well-formed.
+	State.Grid.Init(FRTACGrid::DefaultRows, FRTACGrid::DefaultColumns);
+	State.Entities.AddDefaulted(2);
+
+	// Control: confirm the dirtying actually took. Without this, the clearing assertions below
+	// would pass just as happily against a state that was already empty, which is exactly the
+	// "an experiment that cannot fail is not evidence" trap (Failure Mode 8).
+	CheckTrue(TEXT("Control: the grid is populated before the reinit, so the clearing assertions are not vacuous"),
+		State.Grid.IsInitialized());
+	CheckEqual(TEXT("Control: the populated grid holds Rows x Columns tiles"),
+		State.Grid.NumTiles(), FRTACGrid::DefaultRows * FRTACGrid::DefaultColumns);
+	CheckEqual(TEXT("Control: two entities are present before the reinit"), State.Entities.Num(), 2);
+
 	State.Initialize(4242);
 	CheckEqual(TEXT("Initialize() on a used state resets NextEntityId — standalone, not a patch (Rule 6)"),
 		State.NextEntityId, 0);
 	CheckEqual(TEXT("Initialize() on a used state still stores the master seed"), State.Rng.MasterSeed, 4242);
+	CheckFalse(TEXT("Initialize() on a used state clears the grid — standalone, not a patch (Rule 6)"),
+		State.Grid.IsInitialized());
+	CheckEqual(TEXT("Initialize() on a used state leaves the grid holding no tiles"), State.Grid.NumTiles(), 0);
+	CheckEqual(TEXT("Initialize() on a used state clears the entity array"), State.Entities.Num(), 0);
 
 	// --- Reset returns the state to default-constructed form ---
+	// Dirtied the same way and for the same reason: Reset() is the other half of Rule 6's
+	// complete-standalone-reinitialisation requirement, so it needs its own populated start.
 	State.NextEntityId = 7;
+	State.Grid.Init(FRTACGrid::DefaultRows, FRTACGrid::DefaultColumns);
+	State.Entities.AddDefaulted(2);
+	CheckTrue(TEXT("Control: the grid is populated before Reset()"), State.Grid.IsInitialized());
+	CheckEqual(TEXT("Control: two entities are present before Reset()"), State.Entities.Num(), 2);
+
 	State.Reset();
 	CheckEqual(TEXT("Reset() clears the master seed"), State.Rng.MasterSeed, 0);
 	CheckEqual(TEXT("Reset() clears NextEntityId"), State.NextEntityId, 0);
+	CheckFalse(TEXT("Reset() clears the grid"), State.Grid.IsInitialized());
+	CheckEqual(TEXT("Reset() leaves the grid holding no tiles"), State.Grid.NumTiles(), 0);
+	CheckEqual(TEXT("Reset() clears the entity array"), State.Entities.Num(), 0);
 
 	if (NumPassed == NumAssertions)
 	{
