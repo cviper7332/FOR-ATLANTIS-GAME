@@ -508,6 +508,35 @@ system (Air Shoes, hover), and any attack/chip/reach-attack system all remain de
 this entry's project-wide deferral summary states. See Decision #8's addendum of the same date on
 amending `Status` in place.
 
+**Addendum, September 1, 2026 (cross-reference — this entry is no longer the whole story on
+movement).** No ruling text above is altered by this addendum, and this entry's `CLOSED — enacted`
+status is undisturbed. Two later decisions add rules this entry did not make, and a reader arriving
+here for "the movement rules" needs to know they exist:
+
+- **Decision #12 — movement adjacency.** This entry's Ruling 1 states that movement is one
+  discrete tile per input, but states it as a fact about what a single *input event* means; it
+  never required the simulation to validate it, and nothing did. Decision #12 makes adjacency an
+  enforced rule, as a `NotAdjacent` outcome checked inside `RTACResolveMove` only. **Ruling 4's
+  four clauses are unchanged and remain exactly four** — adjacency is deliberately kept out of
+  `RTACCheckMoveLegality`, which stays the pure destination-occupancy predicate Ruling 4 shaped it
+  to be, precisely so Ruling 6's reuse-from-outside-movement still works. Decision #12 also makes
+  Ruling 6's routing self-enforcing: a reach-attack implementer calling `RTACResolveMove` for a
+  two-tile reach now gets `NotAdjacent` rather than a silent success, so the movement-versus-attack
+  boundary this entry drew in prose is held by behaviour.
+- **Decision #13 — where per-entity override data lives.** Ruling 5 above establishes that a
+  future per-entity property can bypass the broken-tile clause, and defers the mechanism.
+  Decision #13 rules on where that property's data lives when it arrives: no field is added to
+  `FRTACEntity`; innate capabilities resolve from `ArchetypeId` through Decision #9's reserved
+  archetype table, and granted or temporary ones are mutable state belonging to a future effects
+  system. It also rules that Ruling 5's seam and Decision #12's movement-range seam stay distinct
+  rather than merging into one capability flag.
+
+Recorded here because this entry is the natural place a future implementer looks for movement
+rules, and Ruling 4's four clauses read as complete on their own. Without this pointer, the
+adjacency rule and the movement-versus-attack routing would be re-derived from this entry alone in
+a later phase — which is the exact rediscovery Rule 4's append-don't-rewrite discipline exists to
+prevent.
+
 ---
 
 ## Decision #11 — Match-State Container and Entity Spawn: Array Storage, Id-Not-Index Identity, One Invariant Owner
@@ -732,6 +761,404 @@ are the kind of thing that is only ever decided once.
   construction, so "which entity resolves first when two move in the same tick" never arises and
   is not answered here. It becomes real when Phase 2's input layer lands, and wants its own
   decision entry rather than being settled by whatever the first implementation happens to do.
+
+---
+
+## Decision #12 — Movement Adjacency: Enforced in Resolution, Not in the Occupancy Check
+
+**Date:** September 1, 2026
+**Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation)
+**Author:** Omar
+**Status:** OPEN
+
+**Decision:** The one-tile-per-input rule Ruling 1 describes becomes a rule the simulation
+actually enforces, as a new `NotAdjacent` outcome checked inside `RTACResolveMove` and never
+inside `RTACCheckMoveLegality`. The check keeps its four-clause contract and its character as a
+pure destination-occupancy predicate, untouched. Adjacency is orthogonal, Manhattan distance
+exactly 1. The rule is built override-compatible from the start, because a real BN3 mechanic —
+Elebee's movement-warp — already requires the exception. Five sub-rulings.
+
+**1. Adjacency belongs in the simulation layer, but in the resolver, not the checker.**
+
+The question this decision answers was first framed as "simulation layer or input layer." That is
+a false binary: there are two simulation-layer functions here and they are different kinds of
+thing.
+
+- `RTACCheckMoveLegality`'s own first documentation line reads *"Checks whether Entity may legally
+  **occupy** Destination on Grid"* — not "may legally move to." It is an occupancy predicate, and
+  Ruling 4 built it that way deliberately so a future attack system could ask the identical
+  question from outside movement.
+- `RTACResolveMove`'s header reads *"This is Rule 7's Resolution stage for **movement**."* It is
+  the movement resolver.
+
+Adjacency is a movement rule, not an occupancy fact. Rule 5's own enumeration places *"resolution
+rules"* under simulation ownership, so it is simulation-layer work — but it belongs to the mover,
+not the predicate.
+
+**Neither function's signature changes.** `RTACCheckMoveLegality` is untouched because adjacency
+never enters it. `RTACResolveMove` already receives `Entity` (whose `Position` is the origin) and
+`Destination`; both operands are in hand. An explicit origin parameter would serve only the
+question *"would this be adjacent from some hypothetical origin,"* which is not a movement
+question and has no caller.
+
+**2. `NotAdjacent` is a new `ERTACMoveLegality` value, appended after `InvalidOrigin` at value 6.**
+
+The enum's own documentation already established the category this joins:
+
+> TWO CATEGORIES OF VALUE, DELIBERATELY IN ONE ENUM: […] `InvalidOrigin` is a precondition-on-the-
+> mover failure, not a destination outcome. Only `RTACResolveMove` can return it, because only
+> resolution inspects the mover's ORIGIN tile.
+
+`NotAdjacent` is structurally identical: a fact about the origin-to-destination relationship,
+computable only where the origin is known, and meaningless to a caller asking a pure occupancy
+question. The category existed with one member; this is the second. `RTACCheckMoveLegality` must
+never return it, and its documentation's "returns exactly these and nothing else" clause stays
+true of the four Ruling 4 outcomes.
+
+Appended rather than inserted, for the same reason `InvalidOrigin` was: Ruling 4's four clauses
+keep their 1-4 ordering, and the enum stays strictly append-only.
+
+**3. Adjacency means orthogonal, Manhattan distance exactly 1 — derived, not chosen.**
+
+Ruling 1 enumerates the directions itself: an input sequence is *"a list of discrete move-events
+(up/down/left/right)."* Four directions, named. Encoding 8-way adjacency would invent a rule
+Decision #10 did not make, and diagonal movement is not a BN3 movement mechanic. Distance zero —
+a move onto the mover's own tile — is already rejected earlier by the check's `Occupied` clause,
+so `NotAdjacent` covers distance ≥ 2 in practice.
+
+**4. Fixed order inside `RTACResolveMove`, stated explicitly per Rule 7.**
+
+```
+1. RTACCheckMoveLegality(destination)   → any non-Legal result returned unchanged
+2. origin tile lookup                   → InvalidOrigin
+3. adjacency                            → NotAdjacent          (new)
+4. apply the three mutation steps
+```
+
+Adjacency sits **after** the origin check because a mover whose position is not on the board has
+no meaningful distance to compute — `InvalidOrigin` must win. It sits **after** the destination
+check so `RTACResolveMove`'s existing contract, *"anything other than Legal is returned
+unchanged,"* holds with no special case. No-partial-application applies to `NotAdjacent` exactly
+as it does to every other non-Legal result: nothing is mutated.
+
+**5. Built override-compatible from the start — with the seam named and the mechanism deferred.**
+
+`NotAdjacent` is **not** a hard block. Omar has directly and visually confirmed in-game that
+Elebee (MMBN3) warps to a different tile **within its own territory** as part of regular movement
+— not an attack, and not crossing to the player's side. The override case is therefore real and
+already in the source material, not a hypothetical reserved against.
+
+This follows Ruling 5's shape exactly: the outcome is an independently named value, so a future
+per-entity property can change its evaluation for that entity alone without restructuring the
+resolver or altering any other outcome. As with Ruling 5, this decision commits **only to the
+shape being override-compatible** and builds no override mechanism — no entity-modifier system
+exists yet regardless of which property it would gate.
+
+**This is a DIFFERENT per-entity property than Ruling 5's, and the two seams must not be
+conflated.** Ruling 5's override bypasses a tile's `SurfaceModifier` (Air Shoes, hover). This one
+would bypass a movement-range constraint. An archetype that hovers over broken tiles is not
+necessarily one that warps, and the reverse holds too; they are independent axes on the entity,
+and collapsing them into one "special movement" flag would produce exactly the domain conflation
+Rule 10 and Decision #9 both reject at the field level.
+
+**Elebee has TWO distinct warp mechanics, and only one of them is movement.**
+
+Recording this precisely, because conflating them would misroute both:
+
+- **The movement-warp** — within its own territory, regular movement, no attack. This is the
+  mechanic Ruling 5-style override compatibility exists for above. Source: Omar's direct in-game
+  visual confirmation, carrying the same standing as every other "confirmed against actual BN3
+  behavior, Omar" citation in this document.
+- **The attack-warp** — Elebee warps *to the player's side* and attacks. This is not movement at
+  all. It is already correctly modelled by **Ruling 6**'s "attack with a positional side-effect"
+  precedent, the same bucket as Step-Sword, and it must route through the attack's own resolution
+  logic rather than through `RTACResolveMove`.
+
+**A note on the September 1, 2026 web research, so it is not misremembered as wrong.** That
+research found Elebee described as spawning *"on a random square in your area"* and reappearing
+*"close to its target."* That evidence is accurate — it is accurate about the **attack-warp**. It
+was being offered in support of the movement-warp, which it does not describe. The research was
+sound; its application was misaimed. It is cited here under the attack-warp, where it belongs, and
+explicitly **not** as support for the override case in Ruling 5's sense.
+
+Both variants scale in speed and frequency at higher tiers; neither trait unlocks at a tier
+breakpoint. Independently corroborated for the movement behaviour by the tier timings recorded in
+the same research (visibility windows of .7/.4/.2 seconds across the three tiers), which show the
+behaviour present throughout with only its magnitude changing.
+
+**Companion change to Decision #10 (append-only).** A dated cross-reference addendum is added to
+Decision #10 pointing readers here. It alters no ruling text. Without it, a reader arriving at #10
+for movement rules would find four clauses and conclude they are the whole story, and the
+movement-versus-attack routing this decision depends on would be re-litigated from #10 alone in a
+later phase. Decision #10's `CLOSED — enacted` status is not disturbed: this decision adds a rule
+#10 did not make, rather than completing one it left unfinished.
+
+**Rejected alternatives:**
+
+- **Adjacency as a fifth clause in `RTACCheckMoveLegality`.** Rejected on two independent grounds.
+  It contradicts Ruling 4's explicit four-clause specification. And it breaks Ruling 6 before
+  Ruling 6 is built: Step-Sword needs to ask "can entity E legally occupy tile T" for a T two or
+  more tiles away, and an adjacency clause would answer "no" for reasons that have nothing to do
+  with occupancy — silently disabling the reuse Ruling 4 was shaped to permit. Every existing
+  clause is a fact about the destination tile alone, checkable in isolation; adjacency is a fact
+  about a relationship, and is structurally a different kind of thing.
+- **Leaving adjacency entirely to the Phase 2 input layer.** Rejected because it is not a
+  deferral. A deferral has a holder; this had none — the rule would live neither in the simulation
+  nor in an input layer that does not exist. Rule 5 commits movement to resolving "through the
+  simulation layer only," and a simulation that accepts a six-tile step as `Legal` makes that
+  claim weaker than it reads. It also fails Rule 6 in the worst available way: a malformed input
+  sequence replays **deterministically wrong** — same seed, same sequence, same incorrect result
+  every time — passing a determinism test while encoding a bug, which is silently-but-reproducibly
+  rather than loudly-and-reproducibly.
+- **A hard `NotAdjacent` block with no override seam.** Rejected on the evidence. Elebee's
+  movement-warp is confirmed, so a hard block would be known-wrong on the day it was written.
+- **Reusing Ruling 5's override seam for both broken-tile bypass and warp.** Rejected per Ruling 5
+  above — independent axes, and one flag covering both would conflate two domains in one field.
+- **8-way adjacency including diagonals.** Rejected per Ruling 3 — Ruling 1 enumerates four
+  directions, and diagonal movement is not a BN3 movement mechanic. (Elebee attacking diagonally,
+  noted in the same research, is an attack pattern, not movement.)
+- **A separate result enum for resolver-only outcomes.** Rejected for the reason
+  `ERTACMoveLegality`'s own documentation already gives for keeping `InvalidOrigin` in this enum:
+  callers of `RTACResolveMove` want one result vocabulary covering every way a resolve can
+  decline, and splitting it would force every caller to switch over two enums for one call.
+
+**Why this matters:** the rule that movement is one tile currently lives nowhere. `RTACResolveMove`
+would today accept an origin-to-anywhere "move" as `Legal` provided the destination is in bounds,
+unoccupied, correctly owned, and unbroken — so a caller bug, a bad refactor, or a Phase 2 input
+layer computing the wrong destination sails through undetected and surfaces far from where it was
+introduced, which is precisely the "correct pieces, wrong assembly" shape Failure Mode 4 exists to
+catch. Beyond closing that, this change makes Ruling 6's routing **self-enforcing**: today a
+future Step-Sword implementer could call `RTACResolveMove` for a two-tile reach and it would
+silently work, quietly collapsing the movement-versus-attack distinction Ruling 6 exists to
+preserve; afterwards that call returns `NotAdjacent` and pushes the implementer onto the path
+Ruling 6 already specified. A boundary currently held by prose becomes held by behaviour.
+
+**Strain against Decision #10, stated rather than glossed:** Ruling 1 describes what a single
+input *means*. It never says the simulation validates it. This decision makes the simulation
+enforce a property Ruling 1 only described — a genuine extension, not a restatement of something
+#10 already required, and it is logged as an extension so no future reader mistakes it for one.
+
+**Explicitly deferred:**
+
+- **The warp-override mechanism itself.** No entity-modifier system exists, and none is built
+  here. This decision commits only to `NotAdjacent` being independently named so an override can
+  attach later without restructuring the resolver.
+- **The shape of a movement-range property** — a scalar range, a set of legal offsets, or a
+  predicate. Not decided; deciding it now would commit the design by implication with no consumer
+  to constrain it.
+- **Ruling 5's broken-tile override**, still separately deferred and still a distinct seam.
+- **Phase 2's input layer well-formedness duties.** Enforcing adjacency in the resolver does not
+  relieve the input layer of producing sensible destinations; it means a failure there is caught
+  loudly instead of applied silently.
+- **Tick order and simultaneity (Rule 7).** Phase 1's input sequences are a total order by
+  construction, so "which entity resolves first when two move in the same tick" still never
+  arises and is still not answered. It becomes real with Phase 2's input layer and wants its own
+  entry.
+- **Diagonal movement.** Not introduced, for anything.
+
+**Enactment notes — informational context, not rulings.** Recorded for whoever implements this;
+nothing in this section decides anything.
+
+- **Commit B is unaffected and lands independently of this.** Every move in `RTACMovementTest.cpp`
+  is an orthogonal single step; its OutOfBounds case is rejected by the destination check before
+  adjacency is reached, and its isolated stray hits `InvalidOrigin` first. That test builds and
+  passes unchanged under this decision, whether it lands before or after.
+- **What enacting this touches:** the new enum value; `RTACResolveMove`'s step 3 and its header
+  doc; `ERTACMoveLegality`'s "two categories" comment, whose second category gains a member;
+  `RTACCheckMoveLegality`'s doc line promising it returns "one of exactly five values"; one added
+  `NotAdjacent` case in the multi-entity test; and that test's header claim of "all six outcomes,"
+  which becomes seven.
+- **Ruling 5's load-bearing confirmation was checked before this entry was logged, not after.**
+  This decision's draft carried an open caution: Ruling 5's override-compatible shape is what
+  keeps `NotAdjacent` from being a hard block, and it would have collapsed into Ruling 6's bucket
+  had the observed Elebee behaviour turned out to be a short attack-warp landing on the enemy side
+  rather than territory-internal repositioning. Omar checked and confirmed directly —
+  repositioning only, no attack, observed as a single-move teleport between two tiles. The seam
+  stands, and `NotAdjacent` is not a hard block.
+
+---
+
+## Decision #13 — Per-Entity Override Capabilities Are Archetype Data, Not an Entity Field
+
+**Date:** September 1, 2026
+**Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation)
+**Author:** Omar
+**Status:** OPEN
+
+**Decision:** No capability, ability, trait, or override field is added to `FRTACEntity` — not a
+generic collection, and not one bespoke boolean per mechanic. Innate capabilities resolve from
+`ArchetypeId` through the archetype lookup table Decision #9 already reserved. Granted, temporary
+capabilities are mutable state, a different category from anything the entity currently holds, and
+belong to an effects system that does not exist. Four sub-rulings.
+
+**1. No `Abilities` collection, and no per-mechanic boolean, on `FRTACEntity`.**
+
+Two per-entity override seams now exist in the design — Decision #10 Ruling 5's `SurfaceModifier`
+bypass (Air Shoes, hover) and Decision #12 Ruling 5's movement-range bypass (Elebee's
+movement-warp). The natural instinct on seeing a second one arrive is that a third and fourth will
+follow, and that a generic extensible collection is better than accumulating a field per mechanic.
+The instinct correctly identifies the smell; the remedy is different. **The right number of fields
+here is zero, because this is not instance data.**
+
+**Neither seam has a field today, and both entries refuse to build one.** Ruling 5: *"no
+entity-modifier system (Air Shoes, hover, or any other property that would alter clause
+evaluation) is built by this decision or is Phase 1 scope."* Decision #12: *"The warp-override
+mechanism itself. No entity-modifier system exists, and none is built here."* The
+accumulating-fields problem currently has **zero instances**; a generic container would be
+generalising across an empty set.
+
+**Rule 8 is already satisfied without any entity-side storage.** Rule 8's concern is that a later
+feature can only be added as a nested branch inside logic that never anticipated it. Both entries
+discharged that at the *clause* level, not the entity level — Ruling 5: *"the clause being
+independently named (Ruling 4) is what makes this override attachable without restructuring the
+check."* The seam lives in `ERTACMoveLegality`'s independently named values. Entity-side storage
+adds no Rule 8 protection that is not already in place.
+
+**2. Innate capabilities are archetype-derived; granted capabilities are mutable state. The two
+must not share a home.**
+
+Asking what the confirmed mechanics actually vary by settles where they live:
+
+- **Elebee's movement-warp** — *every* Elebee warps. It is a property of being an Elebee.
+- **Hovering enemies** — every instance of a hovering archetype hovers.
+
+Both vary by archetype, not by instance. Decision #9 reserved `ArchetypeId` for exactly this: *"a
+future stats/AI-pattern lookup has a seam to plug into without a later struct rework."* An
+archetype record answers "does this entity warp?" by table lookup, costs no new entity field, and
+reopens no closed decision.
+
+**The one genuine exception is granted capability.** BN3's Air Shoes is a NaviCustomizer program
+and/or a chip — given to one instance, and in chip form temporary. That is not derivable from
+archetype: the same MegaMan has it in one battle and not the next.
+
+| | Innate | Granted |
+|---|---|---|
+| Varies by | Archetype | Instance |
+| Mutable during a match | No | **Yes** |
+| Examples | Elebee movement-warp, hover | Air Shoes chip, temporary buffs |
+| Home | Archetype table (reserved by Decision #9) | An effects system (does not exist) |
+
+**Why this settles the Decision #9 question rather than dodging it.** Decision #9 is `CLOSED —
+enacted`, and its exclusion reads *"no facing, no speed, no cooldown, no movement state."* Its
+August 31, 2026 Side addendum is the only precedent for adding a field past that exclusion, and it
+states the criterion explicitly: `Side` *"is set once at spawn and does not change during a match,
+matching the 'identity, not state' character of `EntityId` and `ArchetypeId` rather than the
+movement-state category Decision #9 excluded."*
+
+Immutability at spawn is the entire load-bearing claim. Applying it:
+
+- An **immutable** capability field could be argued identity-like under that precedent — but if it
+  is immutable it is fully determined by archetype, making it a denormalised copy of table data
+  carried on every instance. That is a second source of truth for one quantity (Failure Mode 7),
+  bought at the cost of a struct field.
+- A **mutable** capability field is the only version that earns its place, since temporary grants
+  are the sole thing archetype lookup cannot express. But mutable-during-a-match is precisely the
+  state category Decision #9 excluded.
+
+**The version that is useful is the version that reopens Decision #9's settled scope.** That is
+not forbidden — it could be argued openly in an addendum, as `Side` was — but nothing needs it
+today, and #9 is not reopened for a need that has not arrived.
+
+**3. When the archetype table is built, capability storage is a flag enum, not `FName` keys.**
+
+This ruling binds the *shape* whenever that table is built; it does not schedule the building,
+which remains Decision #9's deferral to Phase 3/4.
+
+This project has already made this exact call once. `FRTACRngState`'s header rejects
+`TMap<FName, FRandomStream>` in favour of named fields because a map *"buys only 'no struct edit
+when adding a stream' — and costs real guarantees: […] a typo'd name would silently create a new
+stream instead of failing to compile."* The reasoning transfers verbatim: a mistyped capability
+key silently means "this entity lacks that capability," which fails as a no-op — the worst
+available failure shape, and invisible at exactly the override sites where being wrong matters.
+
+**Rule 6 sharpens it.** `FName` equality is stable within a run, but an `FName`'s numeric index
+depends on registration order and is **not stable across runs or builds**. Anything that sorts by,
+hashes on, or serialises that index is a determinism hazard. A `TArray<FName>` compared only by
+equality is safe today but is a loaded gun in a codebase whose central guarantee is
+same-seed-same-result. A flag enum has fixed numeric values, no ordering hazard, and serialises
+trivially.
+
+**Rule 10 argues the same way.** A flag enum names each capability as a distinct thing. An `FName`
+bag has no defined domain — nothing prevents a movement bypass, a tile exemption, and an AI hint
+from landing in one container, which is the domain-mixing Rule 10 forbids.
+
+The flag enum's real cost — fixed width, a recompile to add a value — is close to free here. RTAC
+is a compiled C++ plugin with no data-driven modding requirement.
+
+**4. Ruling 5's seam and Decision #12's seam stay distinct, in storage as well as in semantics.**
+
+Decision #12 Ruling 5 already ruled that these are *"independent axes on the entity, and
+collapsing them into one 'special movement' flag would produce exactly the domain conflation Rule
+10 and Decision #9 both reject at the field level."* This decision extends that to storage: they
+do not become two keys in one bag either.
+
+A shared collection would not *force* semantic conflation — an override site can still treat the
+two distinctly. But it removes the structural pressure keeping them apart, which Decision #12
+chose deliberately and hours earlier. A tile-interaction exemption ("ignore this tile's
+brokenness") and a movement-range property ("my reachable set is larger than one step") are
+different in kind, and an entity that hovers over broken tiles is not thereby one that warps.
+
+**Rejected alternatives:**
+
+- **A generic `Abilities` collection on `FRTACEntity`** (e.g. `TArray<FName>`). Rejected per
+  Rulings 1-3: it generalises across zero existing instances, it is either redundant with
+  archetype data (if immutable) or reopens Decision #9's closed scope (if mutable), it loses
+  compile-time checking at every override site, and it carries the `FName`-index determinism
+  hazard into the entity struct itself.
+- **One bespoke boolean per mechanic**, accumulated as each is discovered. Rejected — this is the
+  smell that prompted the question, and it is real. It is rejected not in favour of a container
+  but in favour of no entity field at all.
+- **An immutable capability field argued as identity under the `Side` precedent.** Rejected per
+  Ruling 2: immutable means archetype-determined, which makes the field a denormalised second copy
+  of table data (Failure Mode 7) rather than new information.
+- **`TArray<FName>` or `TSet<FName>` as the eventual archetype-table storage.** Rejected per
+  Ruling 3 — silent typo failure, and `TSet` iteration order additionally is not a determinism
+  contract.
+- **Folding this into Decision #12.** Rejected deliberately: #12 rules on where a movement rule is
+  enforced; this rules on where per-entity capability data lives. Merging them would put two
+  unrelated questions under one heading and make the second undiscoverable to anyone reading #12
+  for movement.
+
+**Why this matters:** the cost of getting this wrong is not a bad field, it is a bad *location*.
+Capability data placed on the instance becomes a second source of truth the moment an archetype
+table exists — every entity carrying a copy of what its archetype already says, with nothing
+keeping the two in agreement (Failure Mode 7, and the same drift this project has already hit
+twice in documentation). Placed in the archetype table it has exactly one home, `ArchetypeId` is
+the key that reaches it, and the seam Decision #9 reserved does the job it was reserved for at no
+additional cost. Deciding it now, while zero fields exist, also means no override site has yet
+been written against the wrong shape — which is the cheapest moment this decision will ever be
+available.
+
+**Strain, stated rather than glossed:**
+
+- **This decision defers, and deferral has a cost.** When the archetype table is built in Phase
+  3/4, whoever builds it must remember capability storage belongs in it. That is a real risk of
+  the thing being improvised under Phase 3 pressure — the exact failure Decision #11 Ruling 3
+  argued *against* accepting when it decided the index-is-not-identity contract early. The
+  difference is cost-to-decide-now: Ruling 3's was one accessor and a header sentence, while a
+  full capability-storage design has no consumer yet to constrain it. This entry is the guard
+  against the improvisation.
+- **Decision #9's own "one unused field" precedent partly argues the other way.** #9 reserved
+  `ArchetypeId` inert specifically to avoid a later struct rework, and the same argument could be
+  made for an inert capability field. The counter is that `ArchetypeId` is the *key* to the table
+  that would hold capabilities — reserving both would put the lookup and its result on the same
+  struct, which is the denormalisation Ruling 2 rejects, not a second independent seam.
+
+**Explicitly deferred:**
+
+- **The archetype lookup table itself.** Still Decision #9's deferral, still Phase 3 (HP/damage)
+  and Phase 4 (AI). This decision rules on what goes in it and in what shape, not on when it is
+  built.
+- **The effects/buff system that would grant temporary capabilities.** Does not exist, is not
+  Phase 1, and is chip-adjacent enough to sit with Phase 5's chip-equivalent resource system.
+  Where granted capabilities are stored — per-match state, a per-entity effect list, or something
+  else — is explicitly not decided here.
+- **Decision #10 Ruling 5's broken-tile override mechanism**, still deferred and still its own
+  seam.
+- **Decision #12's warp-override mechanism**, still deferred and still a separate seam from the
+  above.
+- **The capability enum's actual values.** None are named here; naming them requires the consuming
+  systems to exist.
 
 ---
 
