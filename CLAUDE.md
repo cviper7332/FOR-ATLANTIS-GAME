@@ -21,11 +21,14 @@ and its addenda), `RTACCheckMoveLegality` (Decision #10 Ruling 4's four-clause l
 and `RTACResolveMove` (applies a legal move — position update, occupancy swap on both tiles;
 re-validates internally rather than trusting a caller's prior check; hard-fails via
 `InvalidOrigin` on an off-grid mover rather than applying anyway). Three UE Automation Tests
-exist and pass: `RTAC.Simulation.Grid.BasicLifecycle` (Phase 0), and
-`RTAC.Simulation.Rng.StreamSeedDerivation` / `RTAC.Simulation.Rng.MatchStateLifecycle` (Phase 1,
-17/17 assertions, three-way confirmed August 30, 2026). The determinism test and multi-entity
+exist and pass — all three confirmed green on September 1, 2026 by a live `LogRTAC` read, against
+a DLL verified to postdate the source edits: `RTAC.Simulation.Grid.BasicLifecycle` (Phase 0,
+13/13 assertions) and `RTAC.Simulation.Rng.StreamSeedDerivation` /
+`RTAC.Simulation.Rng.MatchStateLifecycle` (Phase 1, 6/6 and 24/24 — **30/30 across the two**, up
+from the 17/17 recorded here previously, once `MatchStateLifecycle` was extended to cover the grid
+and entity storage Decision #11 added). The determinism test and multi-entity
 tests remain outstanding — both were blocked on movement resolution existing, and now are not.
-All design work lives in `docs/combat_decisions.md` — Decisions #1–#10, plus a speculative Open
+All design work lives in `docs/combat_decisions.md` — Decisions #1–#11, plus a speculative Open
 Question (mid-battle entity-defection to a third party, not Phase 1 scope).
 
 **Next milestone:** The determinism test (same seed + same input sequence → identical resulting
@@ -336,9 +339,17 @@ and a `complete: N/N assertions passed` summary. Passes log at `Log` verbosity a
 (the automation framework intercepts `Error`-verbosity logs during a test and converts them into
 test failures, so logging failures at `Error` would double-count them).
 
-> **The MCP-retrieval path above is written but not yet verified.** The assertion logging was added
-> after the `3df1fed` run, so it has never been compiled. Confirm it against a live editor after the
-> next build before relying on it; the Session Frontend procedure is the one actually confirmed.
+> **The MCP-retrieval path above is verified live, September 1, 2026.** It returned the full
+> bookended block for all three tests — a `— starting —` line, one `[PASS]` per assertion, and a
+> `complete: N/N assertions passed` summary — read against a DLL confirmed to postdate the source
+> edits. This supersedes the earlier note here that the path was written but had never been
+> compiled, which was true from `195a0de` until that run.
+>
+> **One correction to the invocation, learned in that run.** Calling through the MCP `call_tool`
+> wrapper, pass the tool name WITHOUT its toolset prefix — `GetLogEntries`, not
+> `EditorToolset.LogsToolset.GetLogEntries` — even though `describe_toolset` reports the
+> fully-qualified name in its tool list. The qualified form fails with `Unknown tool`; the prefix
+> travels separately in the `toolset_name` argument.
 
 **Remember the build-verification discipline above** — a test file added or edited since the last
 build is not in the loaded DLL, and the Session Frontend will happily run the *previous* compiled
@@ -452,6 +463,6 @@ Cosmetic, but flag before shipping anything: `Config/DefaultGame.ini` still has
 ---
 
 *Last Updated: September 1, 2026*
-*Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), PARTIAL — Decisions #1–#10
-logged, movement-legality check and resolution implemented; determinism and multi-entity
-tests outstanding.*
+*Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), PARTIAL — Decisions #1–#11
+logged, movement-legality check and resolution implemented, match-state container and entity
+spawn landed (Decision #11); determinism and multi-entity tests outstanding.*
