@@ -1184,6 +1184,31 @@ available.
 
 - Undecided whether the chip-drafting/folder-building resource system from BN3 is kept, replaced, or reworked.
 - No direction chosen yet — intentionally left open until the core loop exists to build against.
+- **Forward-pointer to Decision #13, for whoever designs this system.** Decision #13
+  ruled that FRTACEntity gets no generic Abilities field, because at the time it was
+  written RTAC had exactly two candidate per-entity overrides (Decision #10 Ruling 5's
+  SurfaceModifier bypass, Decision #12's movement-range bypass), both hand-checked at
+  one or two C++ call sites, neither combined freely by a non-engineer. Under those
+  conditions a generic ability/trait bag costs real things (FName's index-instability
+  determinism hazard, loss of compile-time checking, redundancy with the already-
+  reserved ArchetypeId lookup) for no present benefit.
+
+  **That calculus changes here, specifically.** A chip/folder system — BN3's actual
+  chip-drafting mechanic this Open Question is about replacing, keeping, or reworking —
+  is close to the textbook case where a generic, composable ability/effect model earns
+  its cost: potentially many effects, meant to be combined flexibly, likely authored or
+  tuned by someone who isn't hand-writing C++ per effect. If this system is built as
+  "dozens of chip effects, composed rather than each hardcoded," Decision #13's
+  reasoning does NOT transfer here unmodified — re-derive the tradeoff explicitly rather
+  than either (a) assuming #13 forbids a generic effect system, which it doesn't rule
+  on, or (b) assuming #13's specific conclusion (no field, archetype-lookup instead) is
+  still correct once the number of effects and their authoring model actually changes
+  the cost/benefit balance it was computed under.
+
+  This note exists so the two questions — "does FRTACEntity need a generic ability bag
+  today" (#13: no) and "should a future chip/effect system use a generic, composable
+  model" (open, likely yes, not decided) — are never conflated as if answering one
+  answers the other.
 
 
 
