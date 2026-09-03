@@ -151,9 +151,21 @@ as the safety net finally existing, not as permission to be less careful with it
   consistently and it is why its corrections are auditable.
 - Controlled `Status` vocabulary: `CLOSED — fixed in <commit>`, `CLOSED — enacted in <commit>`,
   `PARTIAL — <done>; OUTSTANDING: <remains>`, `OPEN`, `N/A — design rationale, no action implied`,
-  `CLOSED — superseded by Decision #N` (citing the superseding number is mandatory).
+  `CLOSED — superseded by Decision #N` (citing the superseding number is mandatory),
+  `RATIFIED — no code change, formalizes existing practice`.
 - A conclusion reached in conversation is **not decided** until it is in the file. When a chat
   settles a design question that isn't logged, propose an entry.
+
+**Addendum, September 3, 2026 — `RATIFIED` added to the controlled vocabulary.** The list above
+originally held six values. A seventh, `RATIFIED — no code change, formalizes existing practice`,
+was added for entries that put an already-established, already-binding convention on the record.
+The gap it fills: such an entry cites no commit, because none enacts it — the practice predates
+the entry — so every `CLOSED — …in <commit>` form misstates it, and `N/A — design rationale, no
+action implied` understates it, since the convention *is* binding on future work. Introduced
+alongside Decision #14 (automation test naming) at the Phase 1 Exit Review, which is also its
+first use. No existing value changes meaning and no logged entry's status is affected. The
+canonical definition, with the fuller `N/A` contrast, lives in `combat_decisions.md`'s own Status
+values legend.
 
 ---
 

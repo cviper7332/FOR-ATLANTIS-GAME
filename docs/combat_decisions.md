@@ -17,6 +17,11 @@
 - `N/A — design rationale, no action implied` — a choice that never implied a change.
 - `CLOSED — superseded by Decision #N` — fully absorbed by a later decision; citing the
 superseding decision number is mandatory.
+- `RATIFIED — no code change, formalizes existing practice` — an entry that puts an already-
+established, already-binding convention on the record. Distinct from `N/A`: `N/A` covers a choice
+that never implied a change, whereas a `RATIFIED` entry formalizes something that is already true
+in the codebase and binding on future work. No commit is cited because none enacts it — the
+practice predates the entry.
 
 ---
 
@@ -1234,6 +1239,67 @@ available.
 
 ---
 
+## Decision #14 — Automation Test Naming: `RTAC.Simulation.<Area>.<Case>`
+
+**Date:** September 3, 2026
+**Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation)
+**Author:** Omar
+**Status:** RATIFIED — no code change, formalizes existing practice
+
+**Decision:** RTAC's UE Automation Tests are named `RTAC.<Layer>.<Area>.<Case>`, which at Phase 1
+means `RTAC.Simulation.<Area>.<Case>` for every test that exists. `<Area>` names the subsystem
+under test, not the phase that introduced it. All five existing tests already conform; nothing is
+renamed and no code changes. This is the first entry to use the `RATIFIED` status, added to the
+controlled vocabulary in the same commit.
+
+**Why log it now.** The convention was established by practice and never decided, and
+`docs/PHASES.md`'s Test gate section had been flagging that gap in its own words — *"a convention
+established by practice across the three existing tests and never logged as a decision."* The
+Phase 1 Exit Review (`docs/PHASE1_CHECK.md`) identified it as the phase's one settled-but-unlogged
+design point. A convention that governs the project's only test-selection mechanism should not
+survive on precedent alone, where it can be broken by a plausible-looking new test name that
+nothing rejects.
+
+**The five tests it describes:**
+
+| Test | Area |
+|---|---|
+| `RTAC.Simulation.Grid.BasicLifecycle` | Grid |
+| `RTAC.Simulation.Match.DeterministicReplay` | Match |
+| `RTAC.Simulation.Movement.MultiEntity` | Movement |
+| `RTAC.Simulation.Rng.MatchStateLifecycle` | Rng |
+| `RTAC.Simulation.Rng.StreamSeedDerivation` | Rng |
+
+**1. The `RTAC.` prefix is load-bearing, not decoration.** It is what makes
+`Automation RunTests StartsWith:RTAC` — `PHASES.md`'s test gate — select this plugin's tests and
+nothing else, in an editor that also carries Epic's own suites. Dropping or altering it breaks the
+gate silently: the command still succeeds, it just runs a different set. Treat the prefix the way
+`RTACDeriveStreamSeed`'s header treats stream names — an input to a contract, not a label.
+
+**2. `<Area>` groups by subsystem, deliberately, not by phase.** A test's subject is stable; the
+phase that happened to introduce it is not. `Rng` already holds two tests written for different
+concerns, and `Movement` will accumulate Phase 3's attack-adjacent cases without anything needing
+a rename.
+
+**3. Grouping by subsystem has a known, accepted cost.** `StartsWith:RTAC` cannot answer *"did
+this phase's tests pass"* — there is no phase tag to filter on. Until a phase-tagging convention
+exists, that question is answered by the Phase Exit Review checking by hand that each DoD item's
+test artifact exists and passes, exactly as `PHASES.md` already specifies. This decision accepts
+that cost; it does not resolve it.
+
+**Explicitly deferred:**
+
+- **A phase-tagging convention.** Whether tests should additionally carry a phase marker, and in
+  what form (a name segment, an `EAutomationTestFlags` value, a separate filter), is not decided
+  here. `PHASES.md`'s Test gate section notes it wants its own entry; this decision does not
+  pre-empt what that entry concludes.
+- **Layers other than `Simulation`.** Phase 2 introduces presentation; whether its tests take a
+  `Presentation` layer segment or some other shape is unsettled. The four-part shape leaves room
+  without committing.
+- **Whether `<Case>` should encode anything structured.** Free-form today, deliberately.
+
+---
+
 
 
 ## Open Questions
@@ -1399,4 +1465,5 @@ entry, not an extrapolation from this Open Question.
 
 ---
 
-*Last Updated: August 31, 2026 — Decisions #1–#10 current, #9's clarification addendum included.*
+*Last Updated: September 3, 2026 — Decisions #1–#14 current. #12 CLOSED (enacted in 37f68cb);
+#13 OPEN; #14 RATIFIED, logged at the Phase 1 Exit Review.*

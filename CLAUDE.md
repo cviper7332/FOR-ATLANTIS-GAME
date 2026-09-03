@@ -1,14 +1,14 @@
 # CLAUDE.md — FOR ATLANTIS (UE5 Project)
 
 ## Session Context
-**Last Updated:** September 2, 2026
+**Last Updated:** September 3, 2026
 **Engine:** Unreal Engine 5.8 (`EngineAssociation: "5.8"`, `IncludeOrderVersion: Unreal5_8`, RHI: DX12)
 **Development floor:** UE 5.8, hard requirement — not an API-compatibility choice but an
 agent-workflow dependency: CC/CC-Opus's live editor introspection (MCP) is a 5.8 Experimental
 feature, confirmed absent from 5.6 and 5.7 on this machine. See `docs/combat_decisions.md`
 Decision #7. RTAC's own *consumer* portability floor (what a project dropping RTAC in requires)
 is separate and still undetermined — see `docs/PHASES.md` Phase 8.
-**Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation), `PARTIAL`. Phase 0 (Foundation &
+**Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation), `CLOSED`. Phase 0 (Foundation &
 Test Harness) is `CLOSED`. Combat code exists and compiles — see Current state below.
 
 **Current state:** The stock UE5 Third Person template plus its three official variants
@@ -27,66 +27,64 @@ and `RTACResolveMove` (applies a legal move — position update, occupancy swap 
 re-validates internally rather than trusting a caller's prior check; hard-fails via
 `InvalidOrigin` on an off-grid mover rather than applying anyway). **Five** UE Automation Tests
 exist and pass — all five confirmed green on September 2, 2026, against a DLL verified on disk to
-postdate every source edit (`UnrealEditor-RTAC.dll` 18:24:49 vs. last source edit 18:11:39;
-editor launched 18:25:28, run at 18:26:00):
+postdate every source edit (`UnrealEditor-RTAC.dll` 23:24:25 vs. last source edit 23:21:58;
+module loaded 23:25:08, tests run 23:25:35):
 
 | Test | Phase | Assertions |
 |---|---|---|
 | `RTAC.Simulation.Grid.BasicLifecycle` | 0 | 13/13 |
-| `RTAC.Simulation.Match.DeterministicReplay` | 1 | 50/50 |
-| `RTAC.Simulation.Movement.MultiEntity` | 1 | 69/69 |
+| `RTAC.Simulation.Match.DeterministicReplay` | 1 | 51/51 |
+| `RTAC.Simulation.Movement.MultiEntity` | 1 | 74/74 |
 | `RTAC.Simulation.Rng.MatchStateLifecycle` | 1 | 24/24 |
 | `RTAC.Simulation.Rng.StreamSeedDerivation` | 1 | 6/6 |
 
-Zero `[FAIL]` lines; zero `LogRTAC` errors; exactly three `LogRTAC` warnings per run, all
-deliberately provoked by the multi-entity test (two spawn refusals, one `InvalidOrigin`).
-**Both of Phase 1's two tests are now done.** `DeterministicReplay` passed 50/50 on its first
-build and closes Phase 1's last outstanding Definition of Done item — see `docs/PHASES.md` for the
+Zero `[FAIL]` lines; zero `LogRTAC` errors; exactly four `LogRTAC` warnings per run, all
+deliberately provoked by the multi-entity test (two spawn refusals, one `NotAdjacent`, one
+`InvalidOrigin`).
+**Both of Phase 1's two tests are now done.** `DeterministicReplay` was green on its first build
+and now passes 51/51, closing Phase 1's last outstanding Definition of Done item — see
+`docs/PHASES.md` for the
 evidence and, importantly, for what that item's checked box does *not* claim (the seed axis is
 inert and untested; only input-sequence replay is verified).
 
 **`MultiEntity` renders amber in the Session Frontend, not green. That is expected and is not a
-failure — do not re-diagnose it.** Its result is `Success` at 69/69; separately, its three
+failure — do not re-diagnose it.** Its result is `Success` at 74/74; separately, its four
 deliberate warnings are captured as Warning-severity automation events, and UE colours
 Success-with-warnings amber rather than green. The full diagnosis — log evidence plus the UE 5.8
 source lines that drive the colour — lives in `RTACMovementTest.cpp`'s own header comment, next to
 the warnings that cause it, and is deliberately not restated here (Failure Mode 7).
 
-All design work lives in `docs/combat_decisions.md` — Decisions #1–#13, plus a speculative Open
+All design work lives in `docs/combat_decisions.md` — Decisions #1–#14, plus a speculative Open
 Question (mid-battle entity-defection to a third party, not Phase 1 scope).
 
-**Next milestone — no Phase 1 DoD items remain. Three things stand between here and a closed
-phase, and they are different kinds of thing.** Keeping them separate is the point: a Definition
-of Done item gates the phase, a process step gates the *transition*, and an unenacted decision
-gates neither. Merging them into one "remaining work" list would misreport what actually closes
-Phase 1.
+**Next milestone — Phase 2 (Presentation & First Playable Board). Phase 1 is `CLOSED`.** The Phase
+Exit Review ran September 3, 2026; its full findings live in `docs/PHASE1_CHECK.md` and are not
+restated here. In summary: all seven Definition of Done items satisfied with a passing test artifact
+behind each, all 8 Recurring Failure Modes checked against the phase's new code, no critical bugs,
+the Safety Ruleset re-read live rather than inherited from Phase 0's review, and Rule 5's and
+Rule 10's absence-claims re-grepped from scratch rather than carried forward.
 
-*All seven DoD items are satisfied.* The determinism test was the last without a test artifact
-behind it, and `RTAC.Simulation.Match.DeterministicReplay` (50/50) closes it. Read that box with
-its caveat attached, which `docs/PHASES.md` states in full and this file does not restate: Phase 1
-has no gameplay randomness, so the seed axis is inert, and the test verifies input-sequence replay
-determinism rather than the DoD line's whole claim. A seed-axis control becomes possible only when
-the first RNG stream exists — that is a Phase 4/5 obligation inherited from Phase 1, not a Phase 1
-leftover, and it cannot be discharged here by any amount of further work.
+*One DoD item carries a caveat that outlives the phase, and it is not paperwork.* The determinism
+item reads "same seed + same input sequence"; only the **input-sequence** axis is tested. Phase 1
+has no gameplay randomness, so the seed axis is inert and no seed-axis control is writable here —
+a "different seed → different result" assertion would fail against correct code, and a "different
+seed → same result" one would assert the seed's own inertness as though it were determinism.
+Neither is evidence. That control becomes possible when the first real RNG stream exists, which
+makes it **a Phase 4/5 obligation inherited from Phase 1, not a Phase 1 leftover** — it could not
+have been discharged here by any amount of further work, which is why the box is checked rather
+than held open. `docs/PHASES.md` states this in full; whoever closes Phase 4 or Phase 5 should
+read it there.
 
-*Gating the transition, not the DoD — the Phase Exit Review.* `docs/PHASES.md` requires it before
-every phase transition: all DoD items satisfied, all 8 Recurring Failure Modes checked against
-this phase's new code, `AGENTS.md` and `combat_decisions.md` updated if anything shifted, and the
-Safety Ruleset re-read live rather than assumed from Phase 0's review. It has not been run. Until
-it has — and until this work is committed, since the `CLOSED` vocabulary requires a commit hash —
-Phase 1's status stays `PARTIAL`, with all seven DoD items green underneath it.
+*One correction was deliberately kept out of the closing commit.* `RTACDeterminismTest.cpp`'s
+header comment still says the multi-entity test logs "three" deliberate warnings. It logs four,
+since Decision #12's `NotAdjacent` case. The fix is comment-only and cannot change behaviour, but
+landing it would have made plugin source newer than `UnrealEditor-RTAC.dll` and falsified the
+build-verification claim this file and `PHASES.md` both depend on — for a comment. It rides along
+with the next commit that already forces a rebuild. Recorded here so it is not lost.
 
-*Outstanding, but not a DoD item and not a gate — Decision #12's `NotAdjacent` enactment.* The
-adjacency rule is decided and logged; the code is not written. Nothing in Phase 1's Definition of
-Done requires it, so it does not gate the phase — it is design that landed in the log ahead of its
-implementation. Enacting it touches the enum, `RTACResolveMove`'s step 3, three doc comments, and
-one added case in the multi-entity test. It does **not** touch `DeterministicReplay`: every move in
-that test is at Manhattan distance 1 by construction, so no move in it becomes non-adjacent and its
-expected-outcome table survives the change unaltered.
-
-Once Phase 1 closes, Atlantis-specific modifications (starting with elevation, Decision #3) remain
-layered on **after** the base BN3 combat loop is fully playable, never designed simultaneously —
-see `docs/combat_decisions.md` → Open Questions → "Core BN3 Loop".
+Phase 1 closing does not relax the sequencing rule: Atlantis-specific modifications (starting with
+elevation, Decision #3) stay layered on **after** the base BN3 combat loop is fully playable, never
+designed simultaneously — see `docs/combat_decisions.md` → Open Questions → "Core BN3 Loop".
 
 ---
 
@@ -121,7 +119,7 @@ FOR ATLANTIS GAME\
     ├── Automation_ProjectAtlantis.sln / .slnx
     ├── Config\                     ← DefaultEngine/Game/Input/Editor .ini
     ├── Source\ProjectAtlantis\     ← 90 C++ files, single module
-    ├── Plugins\RTAC\               ← combat plugin, scaffold only — see RTAC Plugin below
+    ├── Plugins\RTAC\               ← combat plugin — see RTAC Plugin below
     └── Content\                    ← 718 assets (incl. 521 __External*)
 ```
 
@@ -244,7 +242,8 @@ design or writing any combat code.** Its conventions are binding:
 - Controlled `Status` vocabulary: `CLOSED — fixed in <commit>`, `CLOSED — enacted in <commit>`,
   `PARTIAL — <done>; OUTSTANDING: <remains>`, `OPEN`,
   `N/A — design rationale, no action implied`, `CLOSED — superseded by Decision #N`
-  (citing the superseding number is mandatory).
+  (citing the superseding number is mandatory), `RATIFIED — no code change, formalizes existing
+  practice`.
 
 CC writes decision entries when asked, and should **propose** one whenever a conversation
 settles a design question that isn't yet logged. Do not treat a chat conclusion as decided
@@ -526,10 +525,10 @@ Cosmetic, but flag before shipping anything: `Config/DefaultGame.ini` still has
 
 ---
 
-*Last Updated: September 2, 2026*
-*Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), PARTIAL — Decisions #1–#13
-logged, movement-legality check and resolution implemented, match-state container and entity
-spawn landed (Decision #11). All seven Definition of Done items now satisfied: multi-entity test
-green at 69/69, determinism test green at 50/50. Status stays PARTIAL pending the Phase Exit
-Review and a commit; Decision #12's `NotAdjacent` enactment is still not written, and gates
-nothing.*
+*Last Updated: September 3, 2026*
+*Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), CLOSED — enacted in 6342e68,
+c436334, f1363b4, 9595330, 37f68cb, <corrections commit>. Decisions #1–#14 logged;
+movement-legality check and resolution implemented; match-state container and entity spawn landed
+(Decision #11); Decision #12's `NotAdjacent` enacted in 37f68cb. All seven Definition of Done
+items satisfied: multi-entity test green at 74/74, determinism test green at 51/51. Phase Exit
+Review run September 3, 2026 — findings in `docs/PHASE1_CHECK.md`.*

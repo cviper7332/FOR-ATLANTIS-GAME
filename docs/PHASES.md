@@ -44,7 +44,7 @@ resolution effect) is not acceptable.
 | Phase | Description | Status |
 |---|---|---|
 | 0 | Foundation & Test Harness | `CLOSED — enacted in 9286975, c5527ca, 3df1fed` |
-| 1 | Grid & Movement (Headless Simulation) | `PARTIAL — all seven Definition of Done items satisfied and their test artifacts green (Grid 13/13, MultiEntity 69/69, DeterministicReplay 50/50, MatchStateLifecycle 24/24, StreamSeedDerivation 6/6, all confirmed September 2, 2026 against a DLL verified to postdate every source edit); OUTSTANDING: Phase Exit Review not yet run, and the determinism work is uncommitted — the CLOSED status requires a commit hash that does not exist yet` |
+| 1 | Grid & Movement (Headless Simulation) | `CLOSED — enacted in 6342e68, c436334, f1363b4, 9595330, 37f68cb, <corrections commit>` |
 | 2 | Presentation & First Playable Board | `OPEN` |
 | 3 | Attacks, HP/Damage & Tile Modifiers | `OPEN` |
 | 4 | Enemies & AI | `OPEN` |
@@ -172,7 +172,12 @@ Rules 5, 6, 9, and 11 reviewed against the current simulation code and accepted.
 
 # Phase 1 — Grid & Movement (Headless Simulation)
 
-**Status:** `PARTIAL — all seven Definition of Done items satisfied and their test artifacts green (Grid 13/13, MultiEntity 69/69, DeterministicReplay 50/50, MatchStateLifecycle 24/24, StreamSeedDerivation 6/6, all confirmed September 2, 2026 against a DLL verified to postdate every source edit); OUTSTANDING: Phase Exit Review not yet run, and the determinism work is uncommitted — the CLOSED status requires a commit hash that does not exist yet`
+**Status:** `CLOSED — enacted in 6342e68, c436334, f1363b4, 9595330, 37f68cb, <corrections commit>`
+
+All seven Definition of Done items satisfied, every test artifact green (Grid 13/13,
+DeterministicReplay 51/51, MultiEntity 74/74, MatchStateLifecycle 24/24, StreamSeedDerivation
+6/6), confirmed September 2, 2026 against a DLL verified on disk to postdate every source edit.
+Phase Exit Review run September 3, 2026 — full findings in `docs/PHASE1_CHECK.md`.
 
 ## Goal
 
@@ -237,14 +242,20 @@ reasoning lives in the decision addendum and is not restated here.
       mechanically inert** — see note below. `FRTACTile::SurfaceModifier` and
       `FRTACTile::Elevation` both exist; the modifier slot holds `None` and `Broken` (the latter
       pulled forward from Phase 3 — see Resolves above), and `Elevation`'s inertness is confirmed
-      September 1, 2026 by grep: zero readers of the field in any `.cpp` in the plugin.
+      September 3, 2026 by grep: zero readers of the field in any non-test `.cpp` in the plugin.
+      The qualifier is load-bearing and was added at the Phase Exit Review. Since September 1 the
+      determinism test's comparison helper reads `Elevation` and its liveness control mutates it
+      (`RTACDeterminismTest.cpp:299-302`, `:803`). That is not a mechanical effect — it is the only
+      thing that reaches an inert field at all, and DoD item 5 below says exactly that. The
+      unqualified wording contradicted that note forty lines later; both could not be true.
 - [x] Same seed + same input sequence → identical resulting state, verified by test (Rule 6) —
       satisfied **to the extent testable at Phase 1** by `RTAC.Simulation.Match.DeterministicReplay`
-      (`Private/Tests/RTACDeterminismTest.cpp`), **50/50 assertions**, confirmed green
-      September 2, 2026 on its first build, against a DLL verified on disk to postdate every
-      source edit (`UnrealEditor-RTAC.dll` 18:24:49 vs. last source edit 18:11:39; editor launched
-      18:25:28, run at 18:26:00). Read from `Saved/Logs/ProjectAtlantis.log` — see the note below
-      on why the MCP path did not serve here.
+      (`Private/Tests/RTACDeterminismTest.cpp`), **51/51 assertions** — green on its first build at
+      50/50, and 51/51 since Decision #12's enactment (`37f68cb`) added a `NotAdjacent`
+      negative-coverage assertion. Confirmed September 2, 2026 against a DLL verified on disk to
+      postdate every source edit (`UnrealEditor-RTAC.dll` 23:24:25 vs. last source edit 23:21:58;
+      run at 23:25:35). Read from `Saved/Logs/ProjectAtlantis.log` — see the note below on why the
+      MCP path did not serve here.
       **Read the September 2, 2026 addendum under the determinism note below before treating this
       box as the DoD line's full claim.** The seed axis is inert and untested; this is the
       input-sequence replay half only, and the box is checked on that basis.
@@ -269,9 +280,10 @@ reasoning lives in the decision addendum and is not restated here.
       `FRTACTile::Elevation` and `FRTACEntity::ArchetypeId`, both deliberately inert at Phase 1 and
       therefore unreachable during a replay. An independent hand-derived oracle also checked run
       A's outcomes, since A-vs-B agreement alone would still pass if `RTACResolveMove` returned a
-      constant. All six `ERTACMoveLegality` values were accounted for: five reached, and
-      `InvalidOrigin` asserted **absent** — unreachable from spawned entities by design, and
-      covered instead by `RTAC.Simulation.Movement.MultiEntity`.
+      constant. All seven `ERTACMoveLegality` values were accounted for: five reached, and
+      `InvalidOrigin` and `NotAdjacent` both asserted **absent** — the first unreachable from
+      spawned entities by design, the second because every move here is at Manhattan distance 1 by
+      construction. Both are covered instead by `RTAC.Simulation.Movement.MultiEntity`.
       Input events are **relative directions** (up/down/left/right), not absolute destinations, so
       a single divergence compounds through every later destination instead of being silently
       absorbed. That convention is defined test-locally with its domain named (Rule 10): a delta in
@@ -287,13 +299,13 @@ reasoning lives in the decision addendum and is not restated here.
       regress silently.
 - [x] Tests run against the full configured grid, never a 1×1 or single-entity degenerate case
       (Failure Mode 5) — satisfied by `RTAC.Simulation.Movement.MultiEntity`
-      (`Private/Tests/RTACMovementTest.cpp`, added in `f1363b4`), **69/69 assertions**, confirmed
+      (`Private/Tests/RTACMovementTest.cpp`, added in `f1363b4`), **74/74 assertions**, confirmed
       green September 1, 2026 across two independent runs by a live `LogRTAC` read, against a DLL
       verified on disk to postdate every source edit. It runs on the full default 3×6 board
       (dimensions referenced from `FRTACGrid`, not restated) with four entities, two per side —
       the smallest count producing same-side blocking, cross-boundary rejection, and that
       rejection in both directions.
-      **What the run demonstrated, rather than what the test intends:** all six
+      **What the run demonstrated, rather than what the test intends:** all seven
       `ERTACMoveLegality` outcomes were genuinely reached, not merely present in the source.
       Clause 3 is live rather than inert — tile (1,2) returned `WrongOwner` for an Enemy mover and
       `Legal` for a Player mover under otherwise identical conditions. Clause 4 was actually
@@ -367,6 +379,14 @@ reasoning lives in the decision addendum and is not restated here.
 > inherited from here, not a Phase 1 leftover** — it cannot be discharged in Phase 1 by any amount
 > of additional work, which is why the box is checked rather than held open indefinitely. Whoever
 > closes Phase 4 or Phase 5 should re-read this note.
+>
+> **Addendum, September 3, 2026 (assertion count only — nothing substantive changes).** The
+> September 2 addendum above records this test at **50/50**. That was accurate when written and is
+> left unedited, per Rule 4 and this document's own addendum convention. The current count is
+> **51/51**: Decision #12's enactment (`37f68cb`) added one negative-coverage assertion confirming
+> `NotAdjacent` is never reached in the replay, matching the treatment `InvalidOrigin` already had.
+> Nothing else in that addendum changes — the seed axis is still inert, still untested, and still a
+> Phase 4/5 obligation. Recorded at the Phase 1 Exit Review (`docs/PHASE1_CHECK.md`).
 
 ---
 
@@ -776,8 +796,8 @@ source but has not itself been run.
 **This is not the phase-scoped query PRS's gate is, because no per-phase tag exists.** Test names
 follow `RTAC.Simulation.<Area>.<Case>` — `RTAC.Simulation.Grid.BasicLifecycle`,
 `RTAC.Simulation.Rng.StreamSeedDerivation`, `RTAC.Simulation.Rng.MatchStateLifecycle` — a
-convention established by practice across the three existing tests and **never logged as a
-decision**. It groups by subsystem, not by phase, so `StartsWith:RTAC` runs everything and cannot
+convention established by practice across all five existing tests and logged as **Decision #14**.
+It groups by subsystem, not by phase, so `StartsWith:RTAC` runs everything and cannot
 answer "did *this phase's* tests pass." Until a phase-tagging convention is decided and logged,
 that question is answered by the Phase Exit Review checking by hand that each of the phase's DoD
 test artifacts exists and passes.
