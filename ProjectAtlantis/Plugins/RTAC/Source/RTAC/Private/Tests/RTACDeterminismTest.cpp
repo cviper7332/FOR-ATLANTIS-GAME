@@ -42,10 +42,11 @@ namespace
 	//     Right -> Column + 1
 	//
 	// Every delta changes exactly one axis by exactly one, so every destination this test produces
-	// is at Manhattan distance 1 from its origin. That is deliberate and load-bearing for the
-	// future: Decision #12's `NotAdjacent` outcome is decided but NOT YET ENACTED in
-	// RTACResolveMove, and when it is enacted, no move in this test becomes non-adjacent. This
-	// test's expected results survive that change untouched.
+	// is at Manhattan distance 1 from its origin. That is deliberate and load-bearing: Decision
+	// #12's `NotAdjacent` outcome is now enacted in RTACResolveMove (step 3), and no move in this
+	// test is non-adjacent, so this test's expected results are unaffected by it. The
+	// outcome-coverage block below positively confirms `NotAdjacent` is never reached here, the
+	// same way it confirms `InvalidOrigin` is not.
 	// =================================================================================
 	enum class ETestMoveDirection : uint8
 	{
@@ -616,7 +617,7 @@ bool FRTACMatchDeterministicReplayTest::RunTest(const FString& Parameters)
 	// Outcome coverage, asserted rather than assumed from reading the table. A replay in which every
 	// move returned Legal would exercise one code path fifteen times.
 	{
-		bool bSawLegal = false, bSawOccupied = false, bSawWrongOwner = false, bSawBroken = false, bSawOutOfBounds = false, bSawInvalidOrigin = false;
+		bool bSawLegal = false, bSawOccupied = false, bSawWrongOwner = false, bSawBroken = false, bSawOutOfBounds = false, bSawInvalidOrigin = false, bSawNotAdjacent = false;
 		for (const ERTACMoveLegality Result : ResultsA)
 		{
 			bSawLegal         |= (Result == ERTACMoveLegality::Legal);
@@ -625,6 +626,7 @@ bool FRTACMatchDeterministicReplayTest::RunTest(const FString& Parameters)
 			bSawBroken        |= (Result == ERTACMoveLegality::Broken);
 			bSawOutOfBounds   |= (Result == ERTACMoveLegality::OutOfBounds);
 			bSawInvalidOrigin |= (Result == ERTACMoveLegality::InvalidOrigin);
+			bSawNotAdjacent   |= (Result == ERTACMoveLegality::NotAdjacent);
 		}
 		CheckTrue(TEXT("Coverage: the replay reached Legal"), bSawLegal);
 		CheckTrue(TEXT("Coverage: the replay reached Occupied"), bSawOccupied);
@@ -636,6 +638,12 @@ bool FRTACMatchDeterministicReplayTest::RunTest(const FString& Parameters)
 		// hand-assembles the off-board mover that spawn refuses to create.
 		CheckFalse(TEXT("Coverage: the replay did NOT reach InvalidOrigin — unreachable from spawned entities, by design"),
 			bSawInvalidOrigin);
+		// Also not a gap: every delta in this test moves one axis by one (see the direction-mapping
+		// note at the top of the file), so every destination is at Manhattan distance 1 and
+		// RTACResolveMove's step-3 adjacency check can never reject here. NotAdjacent is covered by
+		// the multi-entity test's deliberate two-tile step.
+		CheckFalse(TEXT("Coverage: the replay did NOT reach NotAdjacent — every move is Manhattan distance 1 by construction"),
+			bSawNotAdjacent);
 	}
 
 	// The board invariant RTACResolveMove assumes but never verifies, re-checked after the replay.

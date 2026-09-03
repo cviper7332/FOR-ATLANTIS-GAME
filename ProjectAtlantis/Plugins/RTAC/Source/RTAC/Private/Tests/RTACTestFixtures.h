@@ -43,6 +43,7 @@ inline const TCHAR* RTACTest_LegalityName(ERTACMoveLegality Value)
 	case ERTACMoveLegality::WrongOwner:    return TEXT("WrongOwner");
 	case ERTACMoveLegality::Broken:        return TEXT("Broken");
 	case ERTACMoveLegality::InvalidOrigin: return TEXT("InvalidOrigin");
+	case ERTACMoveLegality::NotAdjacent:  return TEXT("NotAdjacent");
 	}
 	return TEXT("<unrecognised>");
 }

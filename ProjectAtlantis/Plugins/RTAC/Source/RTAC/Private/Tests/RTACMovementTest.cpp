@@ -52,13 +52,13 @@
  * is still empty, because moving the Player there first would make the Enemy's attempt return
  * Occupied and silently stop testing ownership at all.
  *
- * ON THE THREE EXPECTED LogRTAC WARNINGS. Two deliberate spawn-failure cases make RTACSpawnEntity
- * log at Warning, and the InvalidOrigin case makes RTACResolveMove do the same — all three by
- * design (Rule 9), and all three provoked on purpose. They are not suppressed with
- * AddExpectedMessage: that API matches an exact occurrence count and feeds HasMetExpectedMessages(),
- * so a miscount would fail this test for a reason unrelated to movement. Warnings do not fail a
- * test on their own (bElevateLogWarningsToErrors defaults false), so they are left visible and
- * documented instead of made brittle.
+ * ON THE FOUR EXPECTED LogRTAC WARNINGS. Two deliberate spawn-failure cases make RTACSpawnEntity
+ * log at Warning, and the InvalidOrigin case and the NotAdjacent case (Decision #12) each make
+ * RTACResolveMove do the same — all four by design (Rule 9), and all four provoked on purpose.
+ * They are not suppressed with AddExpectedMessage: that API matches an exact occurrence count and
+ * feeds HasMetExpectedMessages(), so a miscount would fail this test for a reason unrelated to
+ * movement. Warnings do not fail a test on their own (bElevateLogWarningsToErrors defaults false),
+ * so they are left visible and documented instead of made brittle.
  *
  * ---------------------------------------------------------------------------------
  * THIS TEST RENDERS AMBER/YELLOW IN THE SESSION FRONTEND, NOT GREEN. THAT IS EXPECTED, AND IT IS
@@ -67,10 +67,12 @@
  * Diagnosed September 2, 2026, from log evidence and UE 5.8 engine source rather than from UI
  * convention. The automation framework reports two INDEPENDENT things per test: a result, and a
  * captured-event list. This test's result is Success — `LogAutomationController: Display: Test
- * Completed. Result={Success} Name={MultiEntity}` — and its 69/69 assertions all pass. Separately,
- * the three warnings above are captured as Warning-severity events inside this test's
+ * Completed. Result={Success} Name={MultiEntity}` — and its 74/74 assertions all pass. Separately,
+ * the four warnings above are captured as Warning-severity events inside this test's
  * BeginEvents/EndEvents block, each tagged `[log]` because they came from UE_LOG rather than an
- * explicit AddWarning. It is the only RTAC test with a non-empty event block.
+ * explicit AddWarning. It is the only RTAC test with a non-empty event block. (Before Decision
+ * #12's NotAdjacent case landed there were three warnings and 69 assertions; the diagnosis below
+ * is unchanged by either count — it keys on severity, not quantity.)
  *
  * The colour follows from that event list, not from the result:
  *   - SAutomationGraphicalResultBox::GetColorForTestState (UE 5.8,
@@ -320,6 +322,16 @@ bool FRTACMovementMultiEntityTest::RunTest(const FString& Parameters)
 	// Occupied and test nothing about ownership.
 	AttemptRejectedMove(TEXT("WrongOwner: an Enemy steps onto an empty Player-owned tile (1,2)"),
 		EnemyA, FRTACGridPosition(1, 2), ERTACMoveLegality::WrongOwner);
+
+	// NotAdjacent (Decision #12) — a Player at (1,0) reaching two tiles to (1,2), entirely within
+	// its OWN territory: in bounds, unoccupied, Player-owned, unbroken, and the mover sits on a
+	// real origin tile, so all four Ruling 4 clauses AND the InvalidOrigin precondition pass and
+	// the resolver's step-3 adjacency check is genuinely what rejects. Manhattan distance is 2, not
+	// 1. Only RTACResolveMove can return this — RTACCheckMoveLegality never sees the origin — the
+	// same resolver/checker asymmetry the InvalidOrigin case below asserts. Logs one LogRTAC
+	// Warning by design (see this test's header).
+	AttemptRejectedMove(TEXT("NotAdjacent: a Player attempts a two-tile step within its own territory"),
+		PlayerA, FRTACGridPosition(1, 2), ERTACMoveLegality::NotAdjacent);
 
 	// ---------------------------------------------------------------------------------
 	// Legal moves. The first is clause 3's liveness half B: the SAME destination that just

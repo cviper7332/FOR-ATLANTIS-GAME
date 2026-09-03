@@ -20,12 +20,15 @@ struct FRTACGrid;
  * TWO CATEGORIES OF VALUE, DELIBERATELY IN ONE ENUM:
  *   - Legal + the four Ruling 4 clauses (OutOfBounds, Occupied, WrongOwner, Broken) are all
  *     DESTINATION-legality outcomes. RTACCheckMoveLegality returns exactly these and nothing else.
- *   - InvalidOrigin is a precondition-on-the-mover failure, not a destination outcome. Only
- *     RTACResolveMove can return it, because only resolution inspects the mover's ORIGIN tile;
- *     RTACCheckMoveLegality never looks at the origin and so never returns InvalidOrigin. It
- *     shares this enum rather than getting its own type because callers of RTACResolveMove want
- *     one result vocabulary covering every way a resolve can decline — splitting it would force
- *     every caller to switch over two enums for one call.
+ *   - InvalidOrigin and NotAdjacent are precondition-on-the-mover failures, not destination
+ *     outcomes — one is a fact about the mover's ORIGIN tile, the other about the
+ *     origin-to-destination relationship, and both are computable only where the origin is known.
+ *     Only RTACResolveMove can return either, because only resolution reads the mover's origin;
+ *     RTACCheckMoveLegality never looks at the origin and so never returns either value. This
+ *     category began with a single member (InvalidOrigin); NotAdjacent (Decision #12) is the
+ *     second. They share this enum rather than getting their own type because callers of
+ *     RTACResolveMove want one result vocabulary covering every way a resolve can decline —
+ *     splitting it would force every caller to switch over two enums for one call.
  *
  * Deliberately not a UENUM: simulation-layer type, no reflection (Rule 5).
  */
@@ -53,7 +56,26 @@ enum class ERTACMoveLegality : uint8
 	 * inspects the destination alone and never yields this value. Appended after Broken (value 5)
 	 * rather than slotted among the clauses so the four Ruling 4 outcomes keep their 1-4 ordering.
 	 */
-	InvalidOrigin
+	InvalidOrigin,
+
+	/**
+	 * Precondition failure, NOT a Ruling 4 clause — the requested destination is more than one
+	 * tile from the mover's origin. Adjacency is orthogonal, Manhattan distance exactly 1
+	 * (Decision #12 Ruling 3, derived from Ruling 1's up/down/left/right enumeration — no
+	 * diagonals). Distance 0 (a move onto the mover's own tile) is already rejected earlier by
+	 * the check's Occupied clause, so this covers distance >= 2 in practice. Returned only by
+	 * RTACResolveMove, which is the only function that knows the mover's origin;
+	 * RTACCheckMoveLegality inspects the destination alone and never yields this value. Appended
+	 * after InvalidOrigin (value 6) so the four Ruling 4 outcomes keep their 1-4 ordering and the
+	 * enum stays strictly append-only.
+	 *
+	 * NOT a hard block (Decision #12 Ruling 5): it is an independently named outcome so a future
+	 * per-entity movement-range override (Elebee's confirmed in-territory movement-warp) can
+	 * change its evaluation for one entity without restructuring the resolver or altering any
+	 * other outcome. No such override mechanism exists yet, and this is a DIFFERENT seam from the
+	 * checker's clause-4 broken-tile override (Decision #10 Ruling 5) — the two must not be merged.
+	 */
+	NotAdjacent
 };
 
 /**
@@ -79,9 +101,10 @@ enum class ERTACMoveLegality : uint8
  * @param Destination   The tile being validated, in grid space (Rule 10 — never world units).
  * @param Grid          The board Destination is checked against.
  * @return Legal if the move may proceed; otherwise the first clause that failed. One of exactly
- *         five values: Legal, OutOfBounds, Occupied, WrongOwner, Broken. Never InvalidOrigin —
- *         this function does not inspect the mover's origin; see ERTACMoveLegality's own doc and
- *         RTACResolveMove for that check.
+ *         five of ERTACMoveLegality's seven values: Legal, OutOfBounds, Occupied, WrongOwner,
+ *         Broken. Never InvalidOrigin and never NotAdjacent — this function does not inspect the
+ *         mover's origin, and both of those outcomes are facts about the origin; only
+ *         RTACResolveMove can return them. See ERTACMoveLegality's own doc and RTACResolveMove.
  */
 ERTACMoveLegality RTACCheckMoveLegality(const FRTACEntity& Entity, FRTACGridPosition Destination, const FRTACGrid& Grid);
 
@@ -103,8 +126,9 @@ ERTACMoveLegality RTACCheckMoveLegality(const FRTACEntity& Entity, FRTACGridPosi
  * RTACCheckMoveLegality directly and never reaches here.
  *
  * NO PARTIAL APPLICATION. If the check returns anything other than Legal, that result is
- * returned unchanged and no field of Entity or Grid is touched. The same rule covers the one
- * failure this function detects itself, InvalidOrigin (below): it too returns with nothing mutated.
+ * returned unchanged and no field of Entity or Grid is touched. The same rule covers the two
+ * failures this function detects itself, InvalidOrigin and NotAdjacent (below): they too return
+ * with nothing mutated.
  *
  * MUTATES IN PLACE. Entity and Grid are taken by non-const reference and modified directly;
  * this returns a status code, not new copies. Rule 6 mandates explicit state, not immutable
@@ -113,17 +137,35 @@ ERTACMoveLegality RTACCheckMoveLegality(const FRTACEntity& Entity, FRTACGridPosi
  * determinism benefit. FRTACGrid already exposes a non-const FindTile() overload for exactly
  * this kind of write.
  *
- * On success, applies these three steps in this fixed order (stated explicitly per Rule 7 even
- * though origin and destination cannot coincide — a Legal move always changes Position, since
- * clause 2 rejects the occupied origin tile as a destination):
+ * FIXED RESOLUTION ORDER (Decision #12 Ruling 4, stated explicitly per Rule 7):
+ *   1. RTACCheckMoveLegality(Destination)  — any non-Legal result is returned unchanged.
+ *   2. Origin-tile lookup                  — InvalidOrigin if Entity.Position is off-board.
+ *   3. Adjacency                           — NotAdjacent if the move is not one orthogonal step.
+ *   4. The three mutation steps below.
+ * Adjacency sits AFTER the origin check because a mover not on the board has no meaningful
+ * distance to compute — InvalidOrigin must win — and AFTER the destination check so the
+ * "anything other than Legal is returned unchanged" contract needs no special case.
+ *
+ * On success, step 4 applies these three mutations in this fixed order (stated explicitly per
+ * Rule 7 even though origin and destination cannot coincide — a Legal move always changes
+ * Position, since clause 2 rejects the occupied origin tile as a destination):
  *   1. Clear OccupantEntityId (-> INDEX_NONE) on the tile at Entity.Position (the origin).
  *   2. Set Entity.Position = Destination.
  *   3. Set OccupantEntityId = Entity.EntityId on the tile at Destination.
  *
- * ORIGIN PRECONDITION. Between the check passing and step 1, this function confirms Entity.Position
- * corresponds to a real tile. If it does not (unset/off-board mover), it returns InvalidOrigin and
- * applies nothing — a hard failure, not a warn-and-proceed. This is the one outcome RTACResolveMove
- * produces that RTACCheckMoveLegality cannot.
+ * ORIGIN PRECONDITION (step 2). Between the check passing and the adjacency test, this function
+ * confirms Entity.Position corresponds to a real tile. If it does not (unset/off-board mover), it
+ * returns InvalidOrigin and applies nothing — a hard failure, not a warn-and-proceed.
+ *
+ * ADJACENCY (step 3). The destination must be exactly one orthogonal tile from the origin —
+ * Manhattan distance 1 (Decision #12 Ruling 3). A distance of 2 or more returns NotAdjacent with
+ * nothing applied. Per Decision #12 Ruling 5 this is a named, independent outcome rather than a
+ * hard block: a future per-entity movement-range override (Elebee's movement-warp) attaches at
+ * this check alone, without restructuring the resolver. No override mechanism exists yet.
+ *
+ * InvalidOrigin and NotAdjacent are the two outcomes RTACResolveMove produces that
+ * RTACCheckMoveLegality never can — both are facts about the mover's origin, which the check
+ * does not inspect.
  *
  * SCOPE: resolution only. No test yet — that is the next task and depends on this existing.
  *
@@ -131,7 +173,8 @@ ERTACMoveLegality RTACCheckMoveLegality(const FRTACEntity& Entity, FRTACGridPosi
  * @param Destination   The target tile, in grid space (Rule 10).
  * @param Grid          The board. Two tiles' OccupantEntityId are mutated on success.
  * @return Legal when the move was applied; a Ruling 4 clause value when the legality check
- *         rejected the destination; or InvalidOrigin when the mover's own position is off-board.
+ *         rejected the destination; InvalidOrigin when the mover's own position is off-board; or
+ *         NotAdjacent when the destination is more than one orthogonal tile away.
  *         Nothing is applied in any non-Legal case.
  */
 ERTACMoveLegality RTACResolveMove(FRTACEntity& Entity, FRTACGridPosition Destination, FRTACGrid& Grid);

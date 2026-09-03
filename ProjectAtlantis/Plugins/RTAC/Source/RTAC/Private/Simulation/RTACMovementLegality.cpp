@@ -87,19 +87,48 @@ ERTACMoveLegality RTACResolveMove(FRTACEntity& Entity, FRTACGridPosition Destina
 		return ERTACMoveLegality::InvalidOrigin;
 	}
 
-	// Fixed step order (Rule 7), stated explicitly. Origin and destination cannot be the same
-	// tile here — a Legal move always changes Position, since the check's clause 2 rejects an
-	// occupied destination and the origin is occupied by this entity — but the order is declared
-	// regardless so no step silently depends on that being true.
+	// --- Step 3: adjacency (Decision #12 Ruling 4) ---
 	//
-	// Step 1: vacate the origin tile. OriginTile is non-null — the precondition check above
+	// A move is one orthogonal step — Manhattan distance exactly 1 (Ruling 3, derived from
+	// Decision #10 Ruling 1's up/down/left/right enumeration; diagonals are not a BN3 movement
+	// mechanic). This sits AFTER the InvalidOrigin check — a mover not on the board has no
+	// meaningful distance to compute, so InvalidOrigin must win — and AFTER RTACCheckMoveLegality
+	// (via the early return above), so RTACResolveMove's "anything other than Legal is returned
+	// unchanged" contract holds with no special case. Distance 0 (a move onto the mover's own
+	// tile) is already rejected by the check's Occupied clause, so this rejects distance >= 2.
+	//
+	// FUTURE OVERRIDE SEAM (Decision #12 Ruling 5 — Elebee's confirmed in-territory movement-warp;
+	// explicitly deferred, not built here): NotAdjacent is a named, independent outcome, not a
+	// hard block. When a per-entity movement-range property exists, it plugs in as an added
+	// condition on THIS check only — e.g. `if (ManhattanDistance != 1 && !Entity.CanWarp())` —
+	// without touching the destination or origin checks, the mutation steps, or this function's
+	// signature. This is a DIFFERENT seam from RTACCheckMoveLegality's clause-4 broken-tile
+	// override (Decision #10 Ruling 5): an archetype that hovers over broken tiles is not
+	// necessarily one that warps, and collapsing the two into one flag would conflate two domains.
+	const int32 ManhattanDistance =
+		FMath::Abs(Destination.Row - Entity.Position.Row)
+		+ FMath::Abs(Destination.Column - Entity.Position.Column);
+	if (ManhattanDistance != 1)
+	{
+		UE_LOG(LogRTAC, Warning,
+			TEXT("RTACResolveMove: entity %d attempted a non-adjacent move from (%d,%d) to (%d,%d), Manhattan distance %d; rejected (NotAdjacent), nothing applied."),
+			Entity.EntityId, Entity.Position.Row, Entity.Position.Column, Destination.Row, Destination.Column, ManhattanDistance);
+		return ERTACMoveLegality::NotAdjacent;
+	}
+
+	// --- Step 4: the mutations, in fixed sub-step order (Rule 7), stated explicitly. Origin and
+	// destination cannot be the same tile here — a Legal move always changes Position, since the
+	// check's clause 2 rejects an occupied destination and the origin is occupied by this entity —
+	// but the order is declared regardless so no step silently depends on that being true.
+	//
+	// 4.1: vacate the origin tile. OriginTile is non-null — the precondition check above
 	// returned already if it wasn't.
 	OriginTile->OccupantEntityId = INDEX_NONE;
 
-	// Step 2: move the entity.
+	// 4.2: move the entity.
 	Entity.Position = Destination;
 
-	// Step 3: occupy the destination tile.
+	// 4.3: occupy the destination tile.
 	DestinationTile->OccupantEntityId = Entity.EntityId;
 
 	return ERTACMoveLegality::Legal;
