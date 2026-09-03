@@ -5,6 +5,7 @@
 #if WITH_AUTOMATION_TESTS
 
 #include "RTACModule.h" // LogRTAC — Rule 9: dedicated category, never LogTemp.
+#include "RTACTestFixtures.h" // LegalityName + the symmetric-split board fixture, shared with the determinism test.
 #include "Simulation/RTACEntity.h"
 #include "Simulation/RTACGrid.h"
 #include "Simulation/RTACGridPosition.h"
@@ -14,67 +15,12 @@
 #include "Simulation/RTACTile.h"
 #include "Simulation/RTACTileOwner.h"
 
-namespace
-{
-	/**
-	 * Readable names for ERTACMoveLegality, so a failed assertion says "expected WrongOwner, got
-	 * Occupied" rather than "expected 3, got 2". Clause order is the thing most likely to be got
-	 * wrong in this test, and an integer failure message would hide exactly that.
-	 */
-	const TCHAR* LegalityName(ERTACMoveLegality Value)
-	{
-		switch (Value)
-		{
-		case ERTACMoveLegality::Legal:         return TEXT("Legal");
-		case ERTACMoveLegality::OutOfBounds:   return TEXT("OutOfBounds");
-		case ERTACMoveLegality::Occupied:      return TEXT("Occupied");
-		case ERTACMoveLegality::WrongOwner:    return TEXT("WrongOwner");
-		case ERTACMoveLegality::Broken:        return TEXT("Broken");
-		case ERTACMoveLegality::InvalidOrigin: return TEXT("InvalidOrigin");
-		}
-		return TEXT("<unrecognised>");
-	}
-
-	/**
-	 * Stamps a symmetric column split onto the board — left half Player, right half Enemy.
-	 *
-	 * ---------------------------------------------------------------------------------
-	 * THIS IS A TEST FIXTURE. IT IS NOT DECISION #10 RULING 3's AUTHORING MECHANISM, AND MUST
-	 * NEVER BE MISTAKEN FOR ONE OR PROMOTED OUT OF THIS FILE.
-	 *
-	 * Ruling 3 defers the authoring interface — "however a battle's tiles actually get set to
-	 * Player/Enemy/Neutral before combat starts" — and explicitly REJECTS deriving ownership from
-	 * Rows/Columns: mainline MMBN battles default to a symmetric 3x3/3x3 split, but Liberation
-	 * Mission-style battles start asymmetric (the player surrounded, or one side holding more
-	 * field), set by authored rules that a computed split cannot represent. Decision #11 records
-	 * the same boundary from the other side: this decision "adds no ownership-assignment function
-	 * to RTAC."
-	 *
-	 * A computed split is fine HERE precisely because this is a test arranging a known board, not
-	 * a system deciding what boards can exist. If this ever needs to move into the plugin, that is
-	 * a signal the authoring decision has come due — not a signal to copy this function.
-	 * ---------------------------------------------------------------------------------
-	 *
-	 * Every tile must be assigned: ERTACTileOwner::Neutral is a construction-time sentinel, not a
-	 * resting gameplay state (ERTACTileOwner's own August 31, 2026 correction), and leaving tiles
-	 * Neutral is what makes clause 3 unreachable — the degenerate setup this whole test exists to
-	 * avoid (Failure Mode 5).
-	 */
-	void ApplySymmetricSplitFixture(FRTACGrid& Grid)
-	{
-		const int32 PlayerColumns = Grid.GetColumns() / 2;
-
-		for (int32 Row = 0; Row < Grid.GetRows(); ++Row)
-		{
-			for (int32 Column = 0; Column < Grid.GetColumns(); ++Column)
-			{
-				FRTACTile* Tile = Grid.FindTile(Row, Column);
-				check(Tile);
-				Tile->Owner = (Column < PlayerColumns) ? ERTACTileOwner::Player : ERTACTileOwner::Enemy;
-			}
-		}
-	}
-}
+// LegalityName and ApplySymmetricSplitFixture used to live here, in this file's anonymous
+// namespace. The determinism test (RTACDeterminismTest.cpp) needs both, and internal linkage put
+// them out of its reach; they were hoisted into RTACTestFixtures.h rather than copied, per
+// Failure Mode 7 ("one quantity, one authoritative location"). Their documentation moved with
+// them unchanged — in particular the note that the split fixture is NOT Decision #10 Ruling 3's
+// authoring mechanism and must never be promoted out of the test tree.
 
 /**
  * Movement legality and resolution across a populated, multi-entity board.
@@ -113,6 +59,37 @@ namespace
  * so a miscount would fail this test for a reason unrelated to movement. Warnings do not fail a
  * test on their own (bElevateLogWarningsToErrors defaults false), so they are left visible and
  * documented instead of made brittle.
+ *
+ * ---------------------------------------------------------------------------------
+ * THIS TEST RENDERS AMBER/YELLOW IN THE SESSION FRONTEND, NOT GREEN. THAT IS EXPECTED, AND IT IS
+ * NOT A FAILURE. DO NOT RE-DIAGNOSE IT.
+ *
+ * Diagnosed September 2, 2026, from log evidence and UE 5.8 engine source rather than from UI
+ * convention. The automation framework reports two INDEPENDENT things per test: a result, and a
+ * captured-event list. This test's result is Success — `LogAutomationController: Display: Test
+ * Completed. Result={Success} Name={MultiEntity}` — and its 69/69 assertions all pass. Separately,
+ * the three warnings above are captured as Warning-severity events inside this test's
+ * BeginEvents/EndEvents block, each tagged `[log]` because they came from UE_LOG rather than an
+ * explicit AddWarning. It is the only RTAC test with a non-empty event block.
+ *
+ * The colour follows from that event list, not from the result:
+ *   - SAutomationGraphicalResultBox::GetColorForTestState (UE 5.8,
+ *     Developer/AutomationWindow/Private/SAutomationGraphicalResultBox.cpp:296) returns
+ *     FLinearColor(1.0, 0.5, 0.0) — amber — for EAutomationState::Success WHEN bHasWarnings, and
+ *     FLinearColor(0.0, 0.5, 0.0) — green — for Success without. Failure is a separate dark red.
+ *     Success-with-warnings is a genuine third colour, not a shade of failure.
+ *   - SAutomationTestItem.cpp:1086 and :1133 swap the row's status icon to the "Automation.Warning"
+ *     brush under the same condition — that is the yellow triangle.
+ *   - Both are driven by FAutomationReport::HasWarnings(), which keys on GetWarningTotal() > 0.
+ *
+ * THE DISCRIMINATOR IS SEVERITY, NOT THE PRESENCE OF LOG OUTPUT. Every other RTAC test also writes
+ * heavily to LogRTAC — one line per assertion — and all of them render green. Log-verbosity output
+ * does not tint anything; only Warning and above does. RTAC.Simulation.Match.DeterministicReplay
+ * is the direct control: ~56 LogRTAC lines, zero at Warning, green.
+ *
+ * Making this test green would require AddExpectedMessage, which is refused for the reason stated
+ * in the paragraph above. The amber is the accepted cost of that choice.
+ * ---------------------------------------------------------------------------------
  *
  * Simulation-layer only (Rule 5): plain structs and free functions, no engine objects, no
  * presentation layer. Lives inside the plugin per Rule 11.
@@ -153,7 +130,7 @@ bool FRTACMovementMultiEntityTest::RunTest(const FString& Parameters)
 	auto CheckLegality = [&](const TCHAR* What, ERTACMoveLegality Actual, ERTACMoveLegality Expected)
 	{
 		const FString Message = FString::Printf(TEXT("%s (expected %s, got %s)"),
-			What, LegalityName(Expected), LegalityName(Actual));
+			What, RTACTest_LegalityName(Expected), RTACTest_LegalityName(Actual));
 		return Record(*Message, TestTrue(*Message, Actual == Expected));
 	};
 
@@ -175,7 +152,7 @@ bool FRTACMovementMultiEntityTest::RunTest(const FString& Parameters)
 	CheckTrue(TEXT("Setup: the board is larger than one tile, so no degenerate case (Failure Mode 5)"),
 		State.Grid.NumTiles() > 1);
 
-	ApplySymmetricSplitFixture(State.Grid);
+	RTACTest_ApplySymmetricSplitFixture(State.Grid);
 
 	// Control on the fixture itself. Without real ownership every tile stays Neutral, every move
 	// passes clause 3 vacuously, and the WrongOwner cases below would be testing nothing.

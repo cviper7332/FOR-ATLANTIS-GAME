@@ -25,45 +25,64 @@ verifies, Ruling 4), `FRTACEntity` (`EntityId`/`Position`/`ArchetypeId`/`Side` �
 and its addenda), `RTACCheckMoveLegality` (Decision #10 Ruling 4's four-clause legality check),
 and `RTACResolveMove` (applies a legal move — position update, occupancy swap on both tiles;
 re-validates internally rather than trusting a caller's prior check; hard-fails via
-`InvalidOrigin` on an off-grid mover rather than applying anyway). **Four** UE Automation Tests
-exist and pass — all four confirmed green on September 1, 2026 by a live `LogRTAC` read, across
-**two independent runs**, against a DLL verified on disk to postdate every source edit by over an
-hour:
+`InvalidOrigin` on an off-grid mover rather than applying anyway). **Five** UE Automation Tests
+exist and pass — all five confirmed green on September 2, 2026, against a DLL verified on disk to
+postdate every source edit (`UnrealEditor-RTAC.dll` 18:24:49 vs. last source edit 18:11:39;
+editor launched 18:25:28, run at 18:26:00):
 
 | Test | Phase | Assertions |
 |---|---|---|
 | `RTAC.Simulation.Grid.BasicLifecycle` | 0 | 13/13 |
+| `RTAC.Simulation.Match.DeterministicReplay` | 1 | 50/50 |
 | `RTAC.Simulation.Movement.MultiEntity` | 1 | 69/69 |
 | `RTAC.Simulation.Rng.MatchStateLifecycle` | 1 | 24/24 |
 | `RTAC.Simulation.Rng.StreamSeedDerivation` | 1 | 6/6 |
 
-Zero `[FAIL]` lines; exactly three `LogRTAC` warnings per run, all deliberately provoked by the
-multi-entity test (two spawn refusals, one `InvalidOrigin`). `MultiEntity` landed in `f1363b4`
-committed un-built, and that risk is now **closed** — it compiles and passes. It gives
-`RTACSpawnEntity` and `FindEntity` their first coverage, both having shipped untested in
-`6342e68`. **The multi-entity test is done; only the determinism test remains outstanding** of
-Phase 1's two.
+Zero `[FAIL]` lines; zero `LogRTAC` errors; exactly three `LogRTAC` warnings per run, all
+deliberately provoked by the multi-entity test (two spawn refusals, one `InvalidOrigin`).
+**Both of Phase 1's two tests are now done.** `DeterministicReplay` passed 50/50 on its first
+build and closes Phase 1's last outstanding Definition of Done item — see `docs/PHASES.md` for the
+evidence and, importantly, for what that item's checked box does *not* claim (the seed axis is
+inert and untested; only input-sequence replay is verified).
+
+**`MultiEntity` renders amber in the Session Frontend, not green. That is expected and is not a
+failure — do not re-diagnose it.** Its result is `Success` at 69/69; separately, its three
+deliberate warnings are captured as Warning-severity automation events, and UE colours
+Success-with-warnings amber rather than green. The full diagnosis — log evidence plus the UE 5.8
+source lines that drive the colour — lives in `RTACMovementTest.cpp`'s own header comment, next to
+the warnings that cause it, and is deliberately not restated here (Failure Mode 7).
+
 All design work lives in `docs/combat_decisions.md` — Decisions #1–#13, plus a speculative Open
 Question (mid-battle entity-defection to a third party, not Phase 1 scope).
 
-**Next milestone — one Phase 1 DoD item, plus one thing that is deliberately not one.** These are
-kept separate on purpose: a Definition of Done item gates the phase, an unenacted decision does
-not, and merging them into a single "remaining work" list would misreport what actually closes
+**Next milestone — no Phase 1 DoD items remain. Three things stand between here and a closed
+phase, and they are different kinds of thing.** Keeping them separate is the point: a Definition
+of Done item gates the phase, a process step gates the *transition*, and an unenacted decision
+gates neither. Merging them into one "remaining work" list would misreport what actually closes
 Phase 1.
 
-*The remaining DoD item — the determinism test* (same seed + same input sequence → identical
-resulting state, Rule 6). It is the last of Phase 1's seven Definition of Done items without a
-test artifact behind it; the multi-entity item that used to sit beside it is **closed**, satisfied
-by `RTAC.Simulation.Movement.MultiEntity` at 69/69. Carry forward the caveat already recorded in
-`docs/PHASES.md`: Phase 1 has no gameplay randomness, so the seed axis is currently inert, and
-this test will verify input-sequence replay determinism rather than the DoD line's full claim.
-A seed-axis control becomes possible only when the first RNG stream exists (Phase 4 or 5).
+*All seven DoD items are satisfied.* The determinism test was the last without a test artifact
+behind it, and `RTAC.Simulation.Match.DeterministicReplay` (50/50) closes it. Read that box with
+its caveat attached, which `docs/PHASES.md` states in full and this file does not restate: Phase 1
+has no gameplay randomness, so the seed axis is inert, and the test verifies input-sequence replay
+determinism rather than the DoD line's whole claim. A seed-axis control becomes possible only when
+the first RNG stream exists — that is a Phase 4/5 obligation inherited from Phase 1, not a Phase 1
+leftover, and it cannot be discharged here by any amount of further work.
 
-*Outstanding, but not a DoD item — Decision #12's `NotAdjacent` enactment.* The adjacency rule is
-decided and logged; the code is not written. Nothing in Phase 1's Definition of Done requires it,
-so it does not gate the phase — it is design that landed in the log ahead of its implementation.
-Enacting it touches the enum, `RTACResolveMove`'s step 3, three doc comments, and one added case
-in the multi-entity test.
+*Gating the transition, not the DoD — the Phase Exit Review.* `docs/PHASES.md` requires it before
+every phase transition: all DoD items satisfied, all 8 Recurring Failure Modes checked against
+this phase's new code, `AGENTS.md` and `combat_decisions.md` updated if anything shifted, and the
+Safety Ruleset re-read live rather than assumed from Phase 0's review. It has not been run. Until
+it has — and until this work is committed, since the `CLOSED` vocabulary requires a commit hash —
+Phase 1's status stays `PARTIAL`, with all seven DoD items green underneath it.
+
+*Outstanding, but not a DoD item and not a gate — Decision #12's `NotAdjacent` enactment.* The
+adjacency rule is decided and logged; the code is not written. Nothing in Phase 1's Definition of
+Done requires it, so it does not gate the phase — it is design that landed in the log ahead of its
+implementation. Enacting it touches the enum, `RTACResolveMove`'s step 3, three doc comments, and
+one added case in the multi-entity test. It does **not** touch `DeterministicReplay`: every move in
+that test is at Manhattan distance 1 by construction, so no move in it becomes non-adjacent and its
+expected-outcome table survives the change unaltered.
 
 Once Phase 1 closes, Atlantis-specific modifications (starting with elevation, Decision #3) remain
 layered on **after** the base BN3 combat loop is fully playable, never designed simultaneously —
@@ -300,6 +319,21 @@ check for a `_2.log` (present when a second editor instance is running) and time
 `*-backup-<date>-<time>.log` files (prior sessions' rotated logs). Grep all of them, not just the
 primary file, if an expected line seems to be missing.
 
+> **MCP binds to ONE editor instance, and will not tell you it's the wrong one. Hit live,
+> September 2, 2026.** Two editors were open. MCP was bound to instance 2; the test run had
+> happened in instance 1. `GetLogEntries(category="LogRTAC", pattern=".*")` returned a single line
+> — `RTAC module loaded.` — with no error, no warning, and nothing indicating it had read a
+> different process than the one being asked about. Taken at face value it reads as "the tests
+> never ran," which was false; the run was sitting in `ProjectAtlantis.log` at 69/69 and 50/50.
+>
+> **This failure is silent and it is indistinguishable from a real negative result.** Before
+> concluding from MCP that an expected log line is absent, confirm the instance: check whether a
+> `ProjectAtlantis_2.log` exists and which log file was written most recently (`ls -l` on
+> `Saved/Logs/`), and grep the disk logs directly. An empty MCP log read is not evidence of an
+> empty log — it is evidence about one process, and you have not established which. This is the
+> same class of error as Failure Mode 8's stale-binary incident: an instrument reporting
+> confidently about the wrong subject.
+
 **MCP file-read rule:** always re-read a file immediately before any find-and-replace. The
 editor's project panel lags CC edits by one round-trip, and acting on stale content silently
 clobbers the newer version.
@@ -495,5 +529,7 @@ Cosmetic, but flag before shipping anything: `Config/DefaultGame.ini` still has
 *Last Updated: September 2, 2026*
 *Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), PARTIAL — Decisions #1–#13
 logged, movement-legality check and resolution implemented, match-state container and entity
-spawn landed (Decision #11), multi-entity test green at 69/69; determinism test outstanding,
-and Decision #12's `NotAdjacent` enactment not yet written.*
+spawn landed (Decision #11). All seven Definition of Done items now satisfied: multi-entity test
+green at 69/69, determinism test green at 50/50. Status stays PARTIAL pending the Phase Exit
+Review and a commit; Decision #12's `NotAdjacent` enactment is still not written, and gates
+nothing.*

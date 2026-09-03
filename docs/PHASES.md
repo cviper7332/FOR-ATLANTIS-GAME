@@ -44,7 +44,7 @@ resolution effect) is not acceptable.
 | Phase | Description | Status |
 |---|---|---|
 | 0 | Foundation & Test Harness | `CLOSED — enacted in 9286975, c5527ca, 3df1fed` |
-| 1 | Grid & Movement (Headless Simulation) | `PARTIAL — grid/tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9), entity struct built (Decision #9 + Side addendum), tile ownership added (Decision #10 Ruling 3), movement rules fully specified (Decision #10), movement-legality check and resolution implemented (Decision #10 Ruling 4, RTACCheckMoveLegality + RTACResolveMove); OUTSTANDING: determinism test, multi-entity tests` |
+| 1 | Grid & Movement (Headless Simulation) | `PARTIAL — all seven Definition of Done items satisfied and their test artifacts green (Grid 13/13, MultiEntity 69/69, DeterministicReplay 50/50, MatchStateLifecycle 24/24, StreamSeedDerivation 6/6, all confirmed September 2, 2026 against a DLL verified to postdate every source edit); OUTSTANDING: Phase Exit Review not yet run, and the determinism work is uncommitted — the CLOSED status requires a commit hash that does not exist yet` |
 | 2 | Presentation & First Playable Board | `OPEN` |
 | 3 | Attacks, HP/Damage & Tile Modifiers | `OPEN` |
 | 4 | Enemies & AI | `OPEN` |
@@ -172,7 +172,7 @@ Rules 5, 6, 9, and 11 reviewed against the current simulation code and accepted.
 
 # Phase 1 — Grid & Movement (Headless Simulation)
 
-**Status:** `PARTIAL — grid/tile types written, dimensions locked (Decision #8), seed-derivation groundwork tested (Decision #9), entity struct built (Decision #9 + Side addendum), tile ownership added (Decision #10 Ruling 3), movement rules fully specified (Decision #10), movement-legality check and resolution implemented (Decision #10 Ruling 4, RTACCheckMoveLegality + RTACResolveMove); OUTSTANDING: determinism test, multi-entity tests`
+**Status:** `PARTIAL — all seven Definition of Done items satisfied and their test artifacts green (Grid 13/13, MultiEntity 69/69, DeterministicReplay 50/50, MatchStateLifecycle 24/24, StreamSeedDerivation 6/6, all confirmed September 2, 2026 against a DLL verified to postdate every source edit); OUTSTANDING: Phase Exit Review not yet run, and the determinism work is uncommitted — the CLOSED status requires a commit hash that does not exist yet`
 
 ## Goal
 
@@ -238,7 +238,47 @@ reasoning lives in the decision addendum and is not restated here.
       `FRTACTile::Elevation` both exist; the modifier slot holds `None` and `Broken` (the latter
       pulled forward from Phase 3 — see Resolves above), and `Elevation`'s inertness is confirmed
       September 1, 2026 by grep: zero readers of the field in any `.cpp` in the plugin.
-- [ ] Same seed + same input sequence → identical resulting state, verified by test (Rule 6)
+- [x] Same seed + same input sequence → identical resulting state, verified by test (Rule 6) —
+      satisfied **to the extent testable at Phase 1** by `RTAC.Simulation.Match.DeterministicReplay`
+      (`Private/Tests/RTACDeterminismTest.cpp`), **50/50 assertions**, confirmed green
+      September 2, 2026 on its first build, against a DLL verified on disk to postdate every
+      source edit (`UnrealEditor-RTAC.dll` 18:24:49 vs. last source edit 18:11:39; editor launched
+      18:25:28, run at 18:26:00). Read from `Saved/Logs/ProjectAtlantis.log` — see the note below
+      on why the MCP path did not serve here.
+      **Read the September 2, 2026 addendum under the determinism note below before treating this
+      box as the DoD line's full claim.** The seed axis is inert and untested; this is the
+      input-sequence replay half only, and the box is checked on that basis.
+      **What the run demonstrated, rather than what the test intends:** two match states built
+      independently from the same seed by the same fixture — never copied one from the other —
+      converged on identical state across all three compared surfaces (every entity's `EntityId`,
+      `Position.Row`, `Position.Column`, `Side`, `ArchetypeId`; every tile's `Position`,
+      `OccupantEntityId`, `SurfaceModifier`, `Owner`, `Elevation`; match-level `Rng.MasterSeed`,
+      `NextEntityId`, rows, columns, tile count) *and* on an identical ordered sequence of fifteen
+      `ERTACMoveLegality` outcomes. Comparison is field-by-field in a test-local helper — never
+      `FMemory::Memcmp` (padding, and `TArray` heap pointers), never a `bool operator==` (cannot
+      name the diverging field), and no production API was added to serve the test.
+      Three controls fired for the right reasons rather than passing vacuously. The **divergence
+      control** (Failure Mode 8) ran a genuinely different input sequence and was required to
+      differ — it did, reporting `Entities[1].Position.Row: 0 vs 2`, so a comparison helper that
+      always answered "identical" could not have passed this file. The **reconvergence control**
+      demonstrated, rather than argued, that final-state-only comparison is insufficient: a
+      different input sequence reached a byte-equivalent final state while its outcome sequence
+      differed at indices 0 and 4 — a divergence a state-only test would have reported as clean.
+      The **comparison-helper liveness control** mutated each of the fourteen compared fields in a
+      copy and required the helper to notice each one; this is the only thing that exercises
+      `FRTACTile::Elevation` and `FRTACEntity::ArchetypeId`, both deliberately inert at Phase 1 and
+      therefore unreachable during a replay. An independent hand-derived oracle also checked run
+      A's outcomes, since A-vs-B agreement alone would still pass if `RTACResolveMove` returned a
+      constant. All six `ERTACMoveLegality` values were accounted for: five reached, and
+      `InvalidOrigin` asserted **absent** — unreachable from spawned entities by design, and
+      covered instead by `RTAC.Simulation.Movement.MultiEntity`.
+      Input events are **relative directions** (up/down/left/right), not absolute destinations, so
+      a single divergence compounds through every later destination instead of being silently
+      absorbed. That convention is defined test-locally with its domain named (Rule 10): a delta in
+      grid space per Decision #5, never world or screen space. Nothing in the simulation defines
+      it and nothing should — Phase 2's input layer owns the real one. Every delta is one axis by
+      one, so every move is at Manhattan distance 1 and the test is unaffected when Decision #12's
+      `NotAdjacent` is enacted.
 - [x] Grid ↔ world unit conversion does not exist yet in this phase (no presentation layer) —
       confirmed by the absence of any such conversion in the simulation code (Rule 10).
       Positively confirmed September 1, 2026: grep for `FVector`, `FTransform`, `WorldLocation`,
@@ -302,6 +342,31 @@ reasoning lives in the decision addendum and is not restated here.
 > test exists. And its substantive point — that the seed-derivation tests verify the mechanism a
 > future stream will use, not this item's actual claim — is untouched by movement existing, so it
 > remains the reason those passing tests are not evidence here.
+>
+> **Addendum, September 2, 2026 (the item is now checked — on the replay half only).** The replay
+> test exists: `RTAC.Simulation.Match.DeterministicReplay`, 50/50, green on first build. The
+> paragraph above beginning "The item stays unchecked" is superseded as to the *checkbox* and is
+> left unedited per Rule 4. Its substantive point is **not** superseded, and is the reason this
+> addendum exists rather than a bare tick.
+>
+> **What is still not verified, stated plainly so the checked box is not misread.** The DoD line
+> reads "same seed + same input sequence." Only the *input sequence* axis is tested. There is no
+> seed-axis control in that test and none is possible today: Phase 1 has no gameplay randomness,
+> `FRTACRngState` holds a master seed and no stream fields, and `RTACDeriveStreamSeed` is consumed
+> by nothing `RTACResolveMove` touches. A "different seed → different result" assertion would fail
+> against correct code; a "different seed → same result" assertion would be asserting the seed's
+> own inertness as though it were a determinism property. Neither is evidence. Both runs are
+> therefore seeded identically and the seed is compared as ordinary state, not exercised as an
+> input. The test's own header comment carries this same statement, cites this note as its source,
+> and does not re-derive it.
+>
+> **When the missing half becomes testable.** The seed axis opens up when the first real RNG
+> stream exists — Phase 4's AI rolls or Phase 5's chip draws, per `FRTACRngState`'s own header. At
+> that point `DeterministicReplay` gains a fourth run differing only in master seed, and this DoD
+> line's full claim becomes verifiable for the first time. **That is a Phase 4/5 obligation
+> inherited from here, not a Phase 1 leftover** — it cannot be discharged in Phase 1 by any amount
+> of additional work, which is why the box is checked rather than held open indefinitely. Whoever
+> closes Phase 4 or Phase 5 should re-read this note.
 
 ---
 
