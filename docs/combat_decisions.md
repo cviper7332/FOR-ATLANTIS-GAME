@@ -769,7 +769,7 @@ are the kind of thing that is only ever decided once.
 **Date:** September 1, 2026
 **Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation)
 **Author:** Omar
-**Status:** OPEN
+**Status:** CLOSED — enacted in 37f68cb
 
 **Decision:** The one-tile-per-input rule Ruling 1 describes becomes a rule the simulation
 actually enforces, as a new `NotAdjacent` outcome checked inside `RTACResolveMove` and never
@@ -975,6 +975,78 @@ nothing in this section decides anything.
   rather than territory-internal repositioning. Omar checked and confirmed directly —
   repositioning only, no attack, observed as a single-move teleport between two tiles. The seam
   stands, and `NotAdjacent` is not a hard block.
+
+**Addendum, September 2, 2026 — enacted in `37f68cb`. Status moved OPEN → CLOSED.**
+
+All five rulings are enacted, build-verified, and covered by tests. Nothing above is edited;
+this addendum is the record of what enactment actually did, per Rule 4.
+
+- **Ruling 1** — adjacency lives in `RTACResolveMove`, never in `RTACCheckMoveLegality`. Neither
+  signature changed. The checker keeps its four-clause contract and its character as a pure
+  destination-occupancy predicate.
+- **Ruling 2** — `NotAdjacent` appended to `ERTACMoveLegality` at value 6, after `InvalidOrigin`.
+  The four Ruling 4 outcomes keep their 1–4 ordering and the enum stays strictly append-only.
+- **Ruling 3** — orthogonal, Manhattan distance exactly 1, computed as
+  `FMath::Abs(dRow) + FMath::Abs(dColumn)`. Distance 0 is still absorbed by the checker's
+  `Occupied` clause, so the rejection covers distance ≥ 2 as this decision predicted.
+- **Ruling 4** — the fixed order is enacted exactly as specified: check → origin lookup →
+  adjacency → mutations. No-partial-application holds for `NotAdjacent` as for every other
+  non-`Legal` result.
+- **Ruling 5** — enacted as *shape only*, as the ruling itself requires. `NotAdjacent` is a named,
+  independent outcome with the override seam documented at the point of check; no override
+  mechanism is built, and none was. The seam is kept explicitly distinct from Decision #10
+  Ruling 5's broken-tile override, in both the header and the `.cpp`.
+
+**The enactment notes above predicted correctly, with one item that needs restating rather than
+inheriting.** Commit B was indeed unaffected — `RTACMovementTest.cpp` built and passed unchanged
+under this decision, and the `NotAdjacent` case was added to it as new coverage rather than as a
+repair. The "what enacting this touches" list was accurate on every item except one, where the
+list is easy to misread:
+
+> `RTACCheckMoveLegality`'s doc line promising it returns "one of exactly five values"
+
+That line was touched, but **the number did not become six, and must not.** That function's
+contract is unchanged by this decision: it still returns exactly one of five values. What changed
+is that it now excludes *two* origin-facts (`InvalidOrigin` and `NotAdjacent`) instead of one. The
+enacted wording is "five of `ERTACMoveLegality`'s seven values," which states the unchanged
+contract and the grown enum without conflating them. Recorded here because the enactment note,
+read quickly, invites exactly the wrong edit — and because a header claiming six would contradict
+Ruling 1's "neither function's signature changes" and Ruling 2's category boundary at once.
+
+For the same reason, note that this decision's precondition-on-the-mover category holds **two**
+members, not three: Ruling 2's own text is explicit — "the category existed with one member; this
+is the second."
+
+**One thing this decision did not specify, decided at enactment: `NotAdjacent` logs at `Warning`.**
+Decision #12 is silent on logging. The enacted behaviour treats `NotAdjacent` as `InvalidOrigin`'s
+structural twin — same enum category, both resolver-only, both facts about the origin — and, the
+load-bearing part, both a *malformed request* rather than a *normal gameplay rejection*. The four
+Ruling 4 clauses are ordinary outcomes that occur constantly during play, and logging them would be
+the per-frame spam Rule 9 exists to prevent; asking to move two tiles is a caller doing something
+the movement model does not permit, and it surfaces. This is consistent with this decision's own
+"caught loudly, not applied silently" framing, but it is an enactment choice, not a ruling — a
+future decision may revisit it without reopening anything above.
+
+**Test evidence, all confirmed green September 2, 2026 against a DLL verified on disk to postdate
+every source edit** (DLL 23:24:25 vs. last source edit 23:21:58; module loaded 23:25:08, tests run
+23:25:35), read from `LogRTAC` via MCP against the editor instance confirmed to be the one that
+ran them:
+
+- `RTAC.Simulation.Movement.MultiEntity` — **74/74** (was 69/69). Adds a Player at (1,0) reaching
+  two tiles to (1,2), inside its own territory, so all four Ruling 4 clauses *and* the
+  `InvalidOrigin` precondition pass first and the adjacency step is genuinely what rejects. Full
+  no-partial-application coverage on that case. This test now reaches all **seven**
+  `ERTACMoveLegality` outcomes.
+- `RTAC.Simulation.Match.DeterministicReplay` — **51/51** (was 50/50). Every move in that test is
+  at Manhattan distance 1 by construction, so its expected-outcome table is unchanged by this
+  decision, exactly as its own direction-convention note predicted while `NotAdjacent` was still
+  unenacted. A negative-coverage assertion now confirms `NotAdjacent` is never reached there,
+  matching the existing `InvalidOrigin` treatment.
+
+**Still deferred, and untouched by this closure:** Ruling 5's per-entity movement-range override
+(Elebee's in-territory movement-warp) has a seam and no mechanism. Decision #13 governs where such
+a capability would live when it is built — archetype data, not an `FRTACEntity` field — and is
+itself still `OPEN`.
 
 ---
 
