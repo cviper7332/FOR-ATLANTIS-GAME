@@ -44,7 +44,7 @@ resolution effect) is not acceptable.
 | Phase | Description | Status |
 |---|---|---|
 | 0 | Foundation & Test Harness | `CLOSED — enacted in 9286975, c5527ca, 3df1fed` |
-| 1 | Grid & Movement (Headless Simulation) | `CLOSED — enacted in 6342e68, c436334, f1363b4, 9595330, 37f68cb, <corrections commit>` |
+| 1 | Grid & Movement (Headless Simulation) | `CLOSED — enacted in 6342e68, c436334, f1363b4, 9595330, 37f68cb, e0edee9` |
 | 2 | Presentation & First Playable Board | `OPEN` |
 | 3 | Attacks, HP/Damage & Tile Modifiers | `OPEN` |
 | 4 | Enemies & AI | `OPEN` |
@@ -172,7 +172,7 @@ Rules 5, 6, 9, and 11 reviewed against the current simulation code and accepted.
 
 # Phase 1 — Grid & Movement (Headless Simulation)
 
-**Status:** `CLOSED — enacted in 6342e68, c436334, f1363b4, 9595330, 37f68cb, <corrections commit>`
+**Status:** `CLOSED — enacted in 6342e68, c436334, f1363b4, 9595330, 37f68cb, e0edee9`
 
 All seven Definition of Done items satisfied, every test artifact green (Grid 13/13,
 DeterministicReplay 51/51, MultiEntity 74/74, MatchStateLifecycle 24/24, StreamSeedDerivation
