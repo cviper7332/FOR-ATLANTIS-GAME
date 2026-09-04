@@ -3,9 +3,54 @@
 ## Purpose
 
 This document defines the development roadmap for
-RTAC (realtime arena action strategic combat system) and establishes exit criteria for each phase. It is the roadmap only — completion evidence,
-measured results, and corrections belong in the corresponding `PHASE{N}_COMPLETED.md`, created
-only as each phase actually completes (none exist yet; do not pre-create empty files).
+RTAC (realtime arena action strategic combat system) and establishes exit criteria for each phase.
+It is forward-looking: what each phase must deliver, and what closing it requires.
+
+**Three documents per phase, deliberately separate. Two of them are per-phase artifacts and both
+are REQUIRED before a phase may be marked `CLOSED`.**
+
+- **This file** — the roadmap and its exit criteria. Forward-looking. A phase's Definition of Done
+  states what must be true and carries the verdict on each item plus a pointer to where the
+  evidence lives; the evidence itself belongs in that phase's completion record. (DoD items for
+  Phases 0 and 1 currently carry their evidence inline, predating this split. That is not wrong,
+  only older; it is not to be duplicated into a completion record — see the migration note in
+  `PHASE1_COMPLETED.md`.)
+- **`PHASE{N}_CHECK.md` — the Exit Review. Deliberative, and written BEFORE the phase closes.**
+  Findings, a verdict against every DoD item and all 8 Recurring Failure Modes, judgment calls
+  stated as judgment calls with the standard used, and open questions **posed for a ruling rather
+  than answered**. It is a **frozen record of the review as it stood** — never updated afterwards,
+  including where later rulings supersede what it proposed, because its whole value is showing
+  what was known and asked at the time. Placeholders and superseded proposals inside it stay.
+  `docs/PHASE1_CHECK.md` is the first.
+- **`PHASE{N}_COMPLETED.md` — the completion record. Settled, and written AFTER the review's
+  questions are resolved and its corrections have landed.** What was built, measured results,
+  test evidence, files and commits changed, decisions enacted, deferred items, and what the next
+  phase must address. It poses no questions and contains nothing unresolved. **Required for every
+  closed phase without exception** — a phase with little to record gets a short one, never none.
+  An absent record must never be ambiguous between "nothing to say" and "nobody wrote it."
+  Do not pre-create empty files: it is written at closure, not reserved in advance.
+
+**The two are not redundant, and neither absorbs the other.** The review asks; the record states.
+Where they would overlap — the Safety Ruleset audit, the Failure Mode checks — the completion
+record **cites the review rather than restating it** (Failure Mode 7: one quantity, one
+authoritative location).
+
+**This is a deliberate divergence from the PRS structure this document was adapted from**, where
+the exit review is a checkbox section inside the completion record and no separate review file
+exists. RTAC splits them because a review that poses open questions for a ruling cannot live
+inside a document defined as containing nothing unresolved. Recorded so the split is not later
+"corrected" back by comparison with the source project.
+
+**Updated September 3, 2026, at the Phase 1 Exit Review.** This section previously read: *"It is
+the roadmap only — completion evidence, measured results, and corrections belong in the
+corresponding `PHASE{N}_COMPLETED.md`, created only as each phase actually completes (none exist
+yet; do not pre-create empty files)."* Two problems. It described a rule this file had violated in
+both closed phases — no such record has ever existed, Phase 0 closed without one, and this
+document's own DoD items carry completion evidence inline throughout. And its "created only as
+each phase actually completes" clause read as a soft condition, which is how the requirement went
+unnoticed for two phases. It is corrected to state the requirement plainly and to name the
+exit-review artifact, which the original text had no category for and which would otherwise
+collide with the completion-record slot.
 
 **Status vocabulary reused verbatim from [`combat_decisions.md`](combat_decisions.md)** — `OPEN`,
 `PARTIAL — <done>; OUTSTANDING: <remains>`, `CLOSED — enacted in <commit>`,

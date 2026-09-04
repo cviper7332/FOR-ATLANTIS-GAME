@@ -12,23 +12,21 @@ is separate and still undetermined — see `docs/PHASES.md` Phase 8.
 Test Harness) is `CLOSED`. Combat code exists and compiles — see Current state below.
 
 **Current state:** The stock UE5 Third Person template plus its three official variants
-(Combat / Platforming / SideScrolling) remains unmodified. Alongside it, the RTAC plugin now
-holds real, compiling simulation code: `FRTACGridPosition`, `FRTACTile` (now with `Owner`,
-Decision #10 Ruling 3), `ERTACSurfaceModifier` (now with `Broken`), `ERTACTileOwner`, `FRTACGrid`
-(Phase 0/1), `FRTACRngState`, `RTACDeriveStreamSeed`, `FRTACMatchState` (no longer just
-seeded-state groundwork — it is now the whole per-match container, holding RNG state, the
-entity-id counter, `FRTACGrid Grid`, and `TArray<FRTACEntity> Entities`, per Decision #11
-Ruling 1), `FRTACMatchState::FindEntity` (the only supported id-to-entity path; array index is
-deliberately **not** identity, Ruling 3), `RTACSpawnEntity` (the one place an entity is placed on
-the board, establishing the grid/entity consistency invariant `RTACResolveMove` assumes but never
-verifies, Ruling 4), `FRTACEntity` (`EntityId`/`Position`/`ArchetypeId`/`Side` — Decision #9
-and its addenda), `RTACCheckMoveLegality` (Decision #10 Ruling 4's four-clause legality check),
-and `RTACResolveMove` (applies a legal move — position update, occupancy swap on both tiles;
-re-validates internally rather than trusting a caller's prior check; hard-fails via
-`InvalidOrigin` on an off-grid mover rather than applying anyway). **Five** UE Automation Tests
-exist and pass — all five confirmed green on September 2, 2026, against a DLL verified on disk to
-postdate every source edit (`UnrealEditor-RTAC.dll` 23:24:25 vs. last source edit 23:21:58;
-module loaded 23:25:08, tests run 23:25:35):
+(Combat / Platforming / SideScrolling) remains unmodified. Alongside it, the RTAC plugin holds
+3,107 lines of real, compiling simulation code across 20 source files — grid and tile types, the
+entity struct, per-tile ownership, the per-match state container, entity spawn, and the
+movement-legality check and its resolution.
+
+**The type-by-type inventory of what Phase 1 delivered is NOT restated here. It is authoritative
+in `docs/PHASE1_COMPLETED.md` → "What Was Built — Simulation Surface."** It used to live in this
+paragraph, which is the wrong home: this is session context describing what exists *now*, so it
+gets rewritten as the project moves, and Phase 1's delivered surface would have silently
+disappeared from the record the first time Phase 2 edited it. A completion record is frozen; this
+file is not. Do not reintroduce the list here (Failure Mode 7).
+
+**Five** UE Automation Tests exist and pass — all five confirmed green on September 2, 2026,
+against a DLL verified on disk to postdate every source edit (`UnrealEditor-RTAC.dll` 23:24:25 vs.
+last source edit 23:21:58; module loaded 23:25:08, tests run 23:25:35):
 
 | Test | Phase | Assertions |
 |---|---|---|
@@ -203,14 +201,14 @@ Re-check the 50 MB/100 MB thresholds before committing new binary content — Co
 
 ## Safety Ruleset
 
-**Canonical: [`docs/AGENTS.md`](docs/AGENTS.md).** Fourteen mandatory rules — seven on agent conduct
-(in force now), seven on architecture (binding on combat code as it is written) — plus the
-Recurring Failure Modes checklist and the audit table.
+**Canonical: [`docs/AGENTS.md`](docs/AGENTS.md).** Fifteen mandatory rules — eight on agent conduct
+(in force now), seven on architecture (now binding on real combat code, and audited against it at
+the Phase 1 Exit Review) — plus the Recurring Failure Modes checklist and the audit table.
 
 Read it before any work. Read the Recurring Failure Modes section specifically before writing
 any combat system, any balance constant, or any test oracle.
 
-The seven conduct rules in force today:
+The eight conduct rules in force today:
 
 | Rule | Short form |
 |---|---|
@@ -221,6 +219,7 @@ The seven conduct rules in force today:
 | 12 — Diffs Shown as Their Own Block | Any diff presented for review is printed as its own visible block in the reply, not left only inside Bash tool output. |
 | 13 — Verify Date Before Dated Content | Check the actual system date before writing anything dated. Never reuse a date from earlier in the session. |
 | 14 — Goal Describes Its Full DoD | A phase's Goal section must cover every item in that phase's Definition of Done — not just the headline, the whole thing. |
+| 15 — Adversarial Verification | Re-derive prior-turn claims rather than inherit them — absence-claims especially. Name what would falsify each claim and run it. Report what held, not only what failed. |
 
 **Rule 13 covers this file's own dated content.** Before updating either `Last Updated` line (top
 of Session Context, and the footer), or adding any dated note anywhere in `CLAUDE.md`, check the

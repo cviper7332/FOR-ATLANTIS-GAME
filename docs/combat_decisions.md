@@ -549,7 +549,7 @@ prevent.
 **Date:** September 1, 2026
 **Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation)
 **Author:** Omar
-**Status:** OPEN
+**Status:** CLOSED — enacted in `6342e68`
 
 **Decision:** `FRTACGrid` and entity storage move inside `FRTACMatchState`, stored as a flat
 `TArray<FRTACEntity>`; array index is explicitly **not** entity identity, and lookup by
@@ -766,6 +766,52 @@ are the kind of thing that is only ever decided once.
   construction, so "which entity resolves first when two move in the same tick" never arises and
   is not answered here. It becomes real when Phase 2's input layer lands, and wants its own
   decision entry rather than being settled by whatever the first implementation happens to do.
+
+**Addendum, September 3, 2026 (status transition — OPEN → CLOSED, enacted in `6342e68`).** This
+entry's `**Status:**` field above was changed from `OPEN` on this date. All four rulings were
+enacted on September 1, 2026 in commit `6342e68` ("RTAC: match-state container and entity spawn
+(Decision #11)") — the status simply was never transitioned, and the gap went unnoticed for two
+days. Nothing above is edited; this addendum is the record of what enactment did, per Rule 4.
+
+- **Ruling 1** — `FRTACGrid Grid` and `TArray<FRTACEntity> Entities` are members of
+  `FRTACMatchState`, held by value. Option (C) was followed as specified: they landed in their own
+  commit with this decision entry, before either Phase 1 test was written. The stated cost is real
+  and was paid deliberately — match state is now expensive to copy, which the determinism test
+  turns into a feature (snapshot-and-compare is one line, not a hand-written deep copy). Nothing in
+  Phase 1 copies match state per tick.
+- **Ruling 2** — storage is `TArray<FRTACEntity>`. No `TMap` was introduced anywhere.
+- **Ruling 3** — both halves landed, as the ruling required. `FRTACMatchState::FindEntity(int32)`
+  exists as a const/non-const overload pair returning `nullptr` on absence, matching
+  `FRTACGrid::FindTile()`'s convention exactly; and the "array index is NOT entity identity"
+  contract is stated in the header at the storage field, calling the index-equals-id agreement a
+  coincidence rather than a contract. No call site in the plugin indexes `Entities` by `EntityId`.
+- **Ruling 4** — `RTACSpawnEntity(FRTACMatchState&, FRTACGridPosition, ERTACTileOwner, FName)` is
+  declared in `RTACMatchState.h` and defined in `RTACMatchState.cpp` as a free function, per the
+  `RTACResolveMove` precedent the ruling cited. Every sub-ruling holds in the implementation:
+  returns the new `EntityId` or `INDEX_NONE`; both failure cases (off-grid position, occupied tile)
+  log at `Warning` to `LogRTAC` and mutate nothing; `NextEntityId` advances only after both failure
+  checks pass; and the function neither reads nor writes `FRTACTile::Owner`, leaving Decision #10
+  Ruling 3's authoring territory untouched.
+
+**The invariant this ruling exists to own is now established, and is exercised rather than merely
+asserted.** `RTACSpawnEntity` writes `Entity.Position` and the tile's `OccupantEntityId` together,
+in one place, so there is no window in which they can disagree.
+`RTAC.Simulation.Movement.MultiEntity` checks
+`Grid.FindTile(E.Position)->OccupantEntityId == E.EntityId` for every entity after every successful
+move, and both spawn failure paths are provoked deliberately — the two `RTACSpawnEntity` warnings
+in every clean test run are these, by design. That test gave `RTACSpawnEntity` and `FindEntity`
+their first coverage.
+
+**One implementation detail worth recording, because it is load-bearing and non-obvious.**
+`RTACSpawnEntity` holds an `FRTACTile*` across `Entities.AddDefaulted_GetRef()`. That is safe
+specifically because the tile points into `Grid.Tiles`, a different array from `Entities`, so
+growing `Entities` cannot reallocate underneath it. The `.cpp` says so at the line. Anyone later
+merging the two arrays, or adding a spawn path that grows `Grid.Tiles` mid-function, invalidates
+that reasoning.
+
+**Found while writing `docs/PHASE1_COMPLETED.md`**, which enumerates the phase's decisions and
+their statuses — the first thing in the project to cross-check the decision log against enacted
+code. Closed in the same commit that introduced that record.
 
 ---
 

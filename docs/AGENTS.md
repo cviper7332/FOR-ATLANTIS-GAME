@@ -19,13 +19,22 @@ pipeline discipline, and epistemics transfer directly, and are the majority of t
 
 **Every `Caught:` entry below is a real incident on PRS, not on this project.** They are kept
 because they are the evidence for why each rule exists, and because the same agents, the same
-engine, and the same machine are involved here. **No incidents have been logged against FOR
-ATLANTIS yet.** When one occurs, log it here with its date, in the same format — do not delete
-the PRS case that predicted it.
+engine, and the same machine are involved here. When an incident occurs on this project, log it
+here with its date, in the same format — do not delete the PRS case that predicted it.
 
-**Adoption status:** Rules 1–4 (Conduct) are in force **now**. Rules 5–11 (Architecture) bind
-combat code as it is written; there is none yet, so they currently read as design constraints
-rather than audit targets.
+**Most `Caught:` entries below are PRS incidents; three are this project's own.** Rule 13 carries
+two (August 28 and August 30, 2026) and Rule 15 carries one (September 3, 2026). This paragraph
+previously read *"No incidents have been logged against FOR ATLANTIS yet,"* which was already
+contradicted by Rule 13's own entries below it and is corrected here — September 3, 2026.
+
+**Adoption status:** Rules 1–4 and 12–15 (Conduct) are in force **now**. Rules 5–11 (Architecture)
+bind combat code, which now exists: RTAC's simulation layer landed across Phases 0 and 1, and
+every architecture rule was audited against it at the Phase 1 Exit Review
+(`docs/PHASE1_CHECK.md`). They are audit targets, not design constraints.
+
+*Corrected September 3, 2026.* This paragraph previously enumerated only Rules 1–4 as Conduct —
+omitting 12, 13, and 14, each of which is documented below and each of which explains its own
+out-of-sequence numbering — and stated that combat code did not exist yet.
 
 Mapping back to PRS rule numbers is given per rule, so a cross-project conversation can cite
 either.
@@ -295,6 +304,91 @@ None of these appeared in the Goal. A reader taking that Goal at face value woul
 phase complete once entities moved on a board — with no determinism guarantee, no verified layer
 isolation, and no reserved elevation slot, whose absence Rule 8's own "Concrete risk here" note
 warns violates that rule *in advance*.
+
+---
+
+### Rule 15 — Adversarial Verification (Mandatory)
+*Promoted from Failure Mode 8, September 3, 2026 — the same move that promoted Failure Mode 2 to
+Rule 10.*
+*Numbered 15 and placed in Part I for the same reason Rules 12, 13, and 14 were: it is a conduct
+rule about epistemics, not an architecture rule. Rules 1–4 and 12–15 are Conduct; Rules 5–11 are
+Architecture. The gap in sequence is intentional, not an error.*
+
+Failure Mode 8 already states the diagnosis: **"Agreement across several models is not
+verification — it can be one unchecked assumption wearing several signatures."** That sentence had
+no operational counterpart — nothing said what to do instead — so it functioned as a comment
+rather than a control. This rule is that counterpart. Failure Mode 8 keeps the diagnosis and the
+PRS cases; this rule owns the requirement. Neither restates the other.
+
+**When this applies.** Automatically, by task shape, on this closed list:
+
+- Verifying, auditing, or reviewing work done in a prior turn or a prior session.
+- Closing a phase (the Phase Exit Review in `docs/PHASES.md`).
+- Checking any **absence-claim** — "X does not exist," "no reader of Y," "no conversion anywhere."
+- Reviewing a diff for correctness before it lands.
+
+It is **not** gated on model tier. The failure this rule targets is an inherited assumption, and
+any reviewer at any tier can inherit one; gating on tier would encode an untested claim about
+model capability and silently exempt most reviews. It also does **not** require the framing to be
+invoked in the prompt. A rule you must remember to trigger fails exactly when attention is
+lowest, which is when review matters most.
+
+**What it requires — three actions, each with a visible artifact:**
+
+1. **Re-derive, don't inherit.** Any claim relied on that was verified in an earlier turn or
+   session is re-verified now. This binds hardest on absence-claims, which regress silently and
+   emit no signal when they do: a grep that returned clean last week returns clean-looking
+   *prose* today, and only re-running it distinguishes the two.
+2. **Name the falsifier, then run it.** For each substantive claim under review, state in one line
+   what observation would prove it false, and make that observation. A claim whose falsifier
+   cannot be run is recorded as **unverified** — explicitly, in the output — never passed on
+   plausibility.
+3. **Report what held, not only what failed.** A review that lists only findings is
+   indistinguishable from a review that did not happen. Checks that passed are part of the result
+   and are stated.
+
+**Guard — adversarial framing manufactures disagreement, and that is a real cost, not a
+hypothetical one.** A reviewer told to assume prior work is wrong has an incentive to produce
+objections in order to appear rigorous. Therefore: **disagreement carries the same evidentiary
+burden as agreement.** "I checked X by method Y and it held" is a complete, expected, and
+sufficient result — not a weak one. A finding without a named failing observation is not a
+finding. This rule is not a licence to nitpick, and a review that invents work is worse than one
+that never ran, because it costs time and looks like diligence.
+
+**On the phrasing this rule deliberately does not use.** The framing that motivated it — *"assume
+the prior work is completely wrong and must convince you otherwise"* — is good motivation and a
+bad requirement. It describes an attitude, and no one can audit whether a reviewer felt
+adversarial. Every other rule here names an action whose absence is visible: read the file in that
+turn (Rule 2), check the clock (Rule 13), print the diff as its own block (Rule 12). This one names
+three. Keep the attitude; enforce the artifacts.
+
+**Caught (September 3, 2026) — a FOR ATLANTIS incident, and its scope is narrower than it may
+look.** Phase 1's Exit Review found nine documentation errors, two of which were governing
+documents stating something false about the code:
+
+- `PHASES.md`'s elevation Definition of Done item asserted inertness was *"confirmed September 1,
+  2026 by grep: zero readers of the field in any `.cpp` in the plugin."* Re-running that grep
+  rather than inheriting its result showed it false — the determinism test landed in `9595330` had
+  begun reading and mutating `FRTACTile::Elevation`. **The claim had been correctly verified once
+  and then silently regressed**, which is requirement 1's entire justification.
+- Decision #11 read `OPEN` while all four of its rulings were live in `6342e68`, found only by
+  enumerating decision statuses against code while writing `PHASE1_COMPLETED.md`. Nothing else in
+  the project cross-checks the decision log against the source tree.
+- Six commit hashes in a proposed `CLOSED` citation were checked with `git rev-parse` instead of
+  read as plausible; one did not resolve. A non-resolving hash inside a closed phase's status
+  corrupts precisely the audit trail Rules 4 and 13 protect, and does so invisibly.
+
+**What this evidence does not show, stated plainly so the rule is not over-claimed.** All of it is
+**one agent re-verifying prior claims**, not a second independent reviewer auditing a first
+reviewer's work. This project runs one agent per session in practice, and the two-reviewer
+mechanism is untested here. That is why this rule mandates re-derivation and named falsifiers —
+things a single reviewer can actually do — and mandates no second reviewer, which would be a
+requirement nothing could follow.
+
+**Why it matters:** every catch above happened because a task was framed to re-check rather than
+accept. None was required by any rule. The practice worked and was never once enforced, which
+means it held by luck of framing — and a control that depends on being remembered is not a
+control.
 
 ---
 
@@ -664,6 +758,10 @@ against computation or experiment, not against plausibility.**
   control and experiment outputs genuinely differ before trusting either. See `CLAUDE.md` →
   build verification: check the `UnrealEditor-ProjectAtlantis.dll` timestamp. **An experiment
   that cannot fail is not evidence.**
+- **Rule 15 (Adversarial Verification) is this failure mode's operational counterpart** and was
+  promoted out of it on September 3, 2026. This entry keeps the diagnosis and the PRS cases; Rule
+  15 states what a reviewer must actually do — re-derive rather than inherit, name the falsifier
+  and run it, report what held. Neither restates the other; read both.
 
 ---
 
@@ -687,6 +785,7 @@ Before closing any milestone, verify each rule:
 | 12 — Diffs Shown as Their Own Block | Every diff presented for review before a commit/overwrite/destructive action was printed as its own visible block in the reply, not left only inside Bash tool output |
 | 13 — Verify Date Before Dated Content | Every dated entry written this milestone had its date checked against the system clock, not carried over from earlier in the conversation |
 | 14 — Goal Describes Its Full DoD | Every phase's Goal section accounts for every item in that phase's Definition of Done; no DoD requirement is absent from the Goal that describes it |
+| 15 — Adversarial Verification | Prior-turn claims re-derived rather than inherited (absence-claims especially); each substantive claim's falsifier named and run, or the claim marked unverified; checks that held reported alongside those that failed |
 
 ---
 
@@ -696,4 +795,6 @@ headers in PRSCore) dropped as project-specific; PRS Rules 1/4/6 merged into Rul
 (Simulation/Presentation Separation); Rule 3 (No Undo) added for this project's lack of version
 control; Rule 4 (Append, Don't Rewrite) promoted from the format convention in
 `combat_decisions.md`; Failure Mode 2 promoted to Rule 10 (Units and Domain Discipline). All
-`Caught:` cases are PRS incidents — none have been logged against FOR ATLANTIS yet.*
+`Caught:` cases were PRS incidents at creation; Failure Mode 8 was later promoted to Rule 15
+(Adversarial Verification) on September 3, 2026, and three FOR ATLANTIS incidents have since been
+logged — two under Rule 13, one under Rule 15.*
