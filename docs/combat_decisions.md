@@ -1346,6 +1346,82 @@ that cost; it does not resolve it.
 
 ---
 
+## Decision #15 — Input Direction Convention: Screen-Relative Keys Map to Fixed Grid Deltas, Matching BN3's Screen Orientation
+
+**Date:** September 21, 2026
+**Phase:** RTAC Phase 2 (Presentation & First Playable Board)
+**Author:** Omar
+**Status:** OPEN
+
+**Decision:** The four discrete move inputs (Decision #10 Ruling 1) map to fixed grid-space
+deltas, independent of camera angle:
+
+| Input  | Grid delta          |
+|--------|----------------------|
+| Up     | Row: +1, Column: 0   |
+| Down   | Row: -1, Column: 0   |
+| Left   | Row: 0, Column: -1   |
+| Right  | Row: 0, Column: +1   |
+
+This is a grid-space convention (Rule 10) — it does not rotate with the camera. Decision #1's
+isometric camera sits on top of a flat grid; these deltas hold regardless of which way the camera
+happens to be facing at the time. A camera-relative binding (where "Up" means "away from camera")
+would make the same keypress produce a different grid delta depending on camera configuration,
+which is exactly the screen-space/grid-space collision Rule 10 exists to prevent, and would break
+Phase 2's camera-swap falsifiability test (Part B) by construction — the input layer's output
+would silently depend on the thing that test is supposed to be free to change.
+
+**This specific sign choice is a Mechanical Fidelity Standard point (`PHASES.md`), not an
+arbitrary convention that happened to need locking down.** Omar's spec: the bottom-most row on
+screen — "Row 1" in his colloquial BN3-derived description, which is row index 0 in
+`FRTACGridPosition`'s actual zero-indexed field — sits at the bottom of the screen, and row
+numbers increase going up. Walking that through concretely: if the greatest row index is at the
+top and the least is at the bottom, then pressing Up — moving toward the top of the screen — moves
+toward a **larger** row index, i.e. Row +1, and Down moves toward a smaller one, Row -1.
+Left/Right map directly to screen left/right with no mirroring, so grid-Column and screen-Column
+move in the same direction with no flip anywhere in the pipeline. The sign is fixed by the source
+material's actual screen layout, the same standing every other "confirmed against actual BN3
+behavior, Omar" citation in this document carries — not a pick that happened to need locking down
+for its own sake.
+
+**Correction, September 21, 2026, same date, before enactment.** An earlier draft of this table had
+Up/Down inverted (Up: Row -1, Down: Row +1), reasoning incorrectly that "up" pairs naturally with
+"decreasing." That direction of reasoning ignores which end of the row range Omar actually placed
+at the screen-bottom. Caught and corrected before this entry was ever appended to the log, so no
+addendum-to-a-committed-entry is needed — recorded here only so the reasoning that produced the
+right answer is the one on record, not the one that produced the wrong one.
+
+**Dependency this entry creates but does not itself satisfy — camera orientation is undecided,
+checked live rather than assumed, twice.** A grep across all of `Plugins/RTAC/` for any camera
+type, rotation value, boom component, or isometric angle returns zero hits, re-confirmed against
+the current repo state; Decision #1's own text commits to no concrete rotation — isometric 2.5D is
+stated as intent only. This table is only correct *on screen* once a future isometric camera is
+oriented so that increasing Row actually reads as higher on screen and increasing Column reads as
+further screen-right — matching `RTACGridToLocalOffset`'s existing Column→local-X, Row→local-Y
+mapping (Rule 5 Addendum #3) so the two boundaries (grid↔local, local↔screen) compose without a
+hidden flip between them. **The camera's rotation is therefore constrained by this decision, not
+the reverse:** whoever builds the Part B camera actor must orient it to satisfy this table, and
+must verify that satisfaction visually in PIE before treating Phase 2's hit-testing as
+trustworthy — a camera oriented backwards or mirrored relative to this convention would make every
+screen-click resolve to a plausible-looking but wrong tile, silently, which is exactly the kind of
+"correct pieces, wrong assembly" failure Failure Mode 4 warns about.
+
+**Why this needs its own entry:** Decision #10 Ruling 1 states movement is one discrete tile per
+input but explicitly does not define what a direction *means* in grid terms. The determinism
+test's own header comment says so directly: input deltas there are "a delta in grid space per
+Decision #5, never world or screen space. Nothing in the simulation defines it and nothing should
+— Phase 2's input layer owns the real one." This is that entry.
+
+**Explicitly deferred:**
+- The camera actor's actual rotation values — Part B implementation work, not this decision.
+- Elebee-style movement-range overrides (Decision #12 Ruling 5) and any non-orthogonal input
+  scheme — out of scope; this entry only fixes the four-direction, Manhattan-1 mapping already
+  locked by Decision #10/#12.
+- Visual confirmation that a built camera actually satisfies this table — that's a Part B
+  verification step this entry requires but does not itself perform.
+
+---
+
 
 
 ## Open Questions
@@ -1511,5 +1587,7 @@ entry, not an extrapolation from this Open Question.
 
 ---
 
-*Last Updated: September 3, 2026 — Decisions #1–#14 current. #12 CLOSED (enacted in 37f68cb);
-#13 OPEN; #14 RATIFIED, logged at the Phase 1 Exit Review.*
+*Last Updated: September 21, 2026 — Decisions #1–#15 current. #12 CLOSED (enacted in 37f68cb);
+#13 OPEN; #14 RATIFIED, logged at the Phase 1 Exit Review; #15 OPEN, logged during Phase 2 Part B
+design (input direction convention) — camera-orientation work to satisfy it on screen is still
+outstanding, per #15's own text.*
