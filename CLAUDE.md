@@ -280,8 +280,19 @@ until it is in the file.
 
 **Why close UE5 first:** UE5 + VS + UBA running simultaneously on 32GB RAM peaks around
 35–38GB committed, which kills UBA compile jobs. Closing the editor frees ~8GB.
-*(Carried over from the PRS_TestingPlatform project on this machine — same hardware, same
-failure mode expected here; not yet independently measured on this project.)*
+*(Originally carried over from the PRS_TestingPlatform project, same hardware — since
+independently measured on this project, September 21, 2026: with UE5 running, commit charge
+was 34.47 GB / 40.83 GB limit (9.28 GB free); with UE5 fully closed (confirmed via live
+process check — UnrealEditor, UnrealEditor-Cmd, CrashReportClient, ShaderCompileWorker,
+UnrealBuildTool, dotnet, MSBuild, devenv all verified absent, not just window-closed),
+27.24 GB / 40.83 GB (14.39 GB free) — a 7.23 GB drop, matching the PRS figure closely. That
+same build session also showed UBA repeatedly killing and retrying one file's compile
+(RTACGridConversionTest.cpp, 14+ times) under memory pressure before it succeeded — the
+failure mode this note warns about, observed directly rather than just carried over as a
+risk. Background load at the time of the closed-UE5 reading: Brave (28 processes, 3.64GB)
+and Cursor (16 processes, 2.61GB) were the next-largest consumers after UE5 itself — a
+baseline for "normal background load" on this machine if a future memory-pressure
+investigation needs one.)*
 
 **Live Coding:** do not use. It fails consistently with `0xC0000005` under memory pressure.
 
