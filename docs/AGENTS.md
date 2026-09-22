@@ -200,6 +200,23 @@ only inside a Bash tool's IN/OUT transcript.
   the diff — the requirement is that the diff's actual content is then also reproduced as its own
   visible block in the reply, not left implicit in the tool transcript alone.
 
+**Addendum, September 21, 2026 (fenced-code-block form made mandatory, not optional).**
+Rule 12's original text above offers two forms as independently sufficient: "a fenced code
+block, or the diff clearly reproduced outside of a raw tool-call/tool-output wrapper." That
+disjunction is narrowed. A diff presented for review must now be in a fenced code block
+specifically — "clearly reproduced" prose outside a tool wrapper no longer satisfies this rule
+on its own, even though it satisfies the rule's original wording and its original concern
+(visibility/location, not buried in a Bash transcript).
+
+The gap: the original wording's concern was that a diff shown only inside tool output reads as
+"evidence a command ran" rather than "content being submitted for approval." A diff reproduced
+as plain prose in the reply body fully resolves that concern — it is visible, in the reply,
+not buried — while still failing a separate, real operational need the original text never
+named: Omar needs diffs in a form that copy-pastes cleanly out of this chat interface into
+another one, and a fenced code block is the only form that does that reliably. The original
+text is left unchanged per Rule 4; this addendum narrows which of its two offered forms
+satisfies it going forward.
+
 ---
 
 ### Rule 13 — Verify the Current Date Before Writing Any Dated Content (Mandatory)
