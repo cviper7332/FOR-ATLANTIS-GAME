@@ -237,6 +237,17 @@ or alter any Definition of Done item or test-count claim above, which describe w
 the September 2, 2026 build those items cite. Re-verify the build-verification chain at the next
 actual build before trusting any test result against these files.
 
+**Re-verification, September 21, 2026 — build-verification chain re-established.** Checked live
+rather than assumed, following Omar's rebuild: `UnrealEditor-RTAC.dll` relinked at 2026-09-21
+20:33:55, postdating every one of the 25 files under `Plugins/RTAC/Source/RTAC/` (newest source
+file 2026-09-21 20:10:13). All five automation tests were re-run and confirmed at their
+previously-recorded counts — `Grid.BasicLifecycle` 13/13, `Match.DeterministicReplay` 51/51,
+`Movement.MultiEntity` 74/74, `Rng.MatchStateLifecycle` 24/24, `Rng.StreamSeedDerivation` 6/6 —
+read live via `LogRTAC` through MCP, zero `[FAIL]` lines, and exactly four `LogRTAC` warnings, all
+inside `MultiEntity` and all previously accounted for (two spawn refusals, one `NotAdjacent`, one
+`InvalidOrigin`). The September 21, 2026 staleness note above is left unedited per Rule 4; this is
+a new dated entry recording that the gap it flagged has since closed, not a retraction of it.
+
 ## Goal
 
 By the end of this phase the combat board exists as a real, addressable data structure and
