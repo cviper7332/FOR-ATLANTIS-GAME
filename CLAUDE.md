@@ -1,7 +1,7 @@
 # CLAUDE.md — FOR ATLANTIS (UE5 Project)
 
 ## Session Context
-**Last Updated:** September 3, 2026
+**Last Updated:** September 21, 2026
 **Engine:** Unreal Engine 5.8 (`EngineAssociation: "5.8"`, `IncludeOrderVersion: Unreal5_8`, RHI: DX12)
 **Development floor:** UE 5.8, hard requirement — not an API-compatibility choice but an
 agent-workflow dependency: CC/CC-Opus's live editor introspection (MCP) is a 5.8 Experimental
@@ -83,6 +83,21 @@ with the next commit that already forces a rebuild. Recorded here so it is not l
 Phase 1 closing does not relax the sequencing rule: Atlantis-specific modifications (starting with
 elevation, Decision #3) stay layered on **after** the base BN3 combat loop is fully playable, never
 designed simultaneously — see `docs/combat_decisions.md` → Open Questions → "Core BN3 Loop".
+
+**Correction, September 21, 2026 — incorrect Epic Games copyright header removed from all 25
+RTAC source files.** Every file in `Plugins/RTAC/Source/RTAC/` — the 21 pre-existing Phase 0/1
+files and the 4 `Presentation/` files added this session — opened with
+`// Copyright Epic Games, Inc. All Rights Reserved.`, leftover boilerplate from UE5's "New C++
+Class" wizard that was never edited when each file was created, then propagated by imitation file
+after file, including into the 4 new files. This is a labeling error only, hard-verified as such:
+a four-part check (full-content read of all 25 files; a grep for any `Variant_*` include or
+inheritance across the plugin — zero hits; a `RTAC.Build.cs` dependency audit — `Core`,
+`CoreUObject`, `Engine` only, no dependency on `ProjectAtlantis` or any `Variant_*` target; and
+re-derivation of what each file actually does against `PHASE1_COMPLETED.md`'s own claims) found
+**no Epic-authored code anywhere in `Plugins/RTAC/`** — every type, function, and test is original
+Atlantis combat-simulation logic. The header line and its trailing blank line were removed from
+all 25 files, with no replacement text, per Omar's direction. See `docs/PHASES.md` → Phase 1 for
+the build-verification consequence this correction carries.
 
 ---
 
@@ -524,7 +539,7 @@ Cosmetic, but flag before shipping anything: `Config/DefaultGame.ini` still has
 
 ---
 
-*Last Updated: September 3, 2026*
+*Last Updated: September 21, 2026*
 *Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), CLOSED — enacted in 6342e68,
 c436334, f1363b4, 9595330, 37f68cb, e0edee9. Decisions #1–#14 logged;
 movement-legality check and resolution implemented; match-state container and entity spawn landed

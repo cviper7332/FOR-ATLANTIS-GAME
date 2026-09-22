@@ -224,6 +224,19 @@ DeterministicReplay 51/51, MultiEntity 74/74, MatchStateLifecycle 24/24, StreamS
 6/6), confirmed September 2, 2026 against a DLL verified on disk to postdate every source edit.
 Phase Exit Review run September 3, 2026 — full findings in `docs/PHASE1_CHECK.md`.
 
+**Post-closure note, September 21, 2026 — build-verification chain now stale, deliberately, not
+silently.** All 21 pre-existing RTAC source files had an incorrect Epic Games copyright header
+removed (see `CLAUDE.md`'s September 21, 2026 correction for the full account and the four-part
+verification that found no Epic-authored code in the plugin — a labeling error only). That edit
+means every one of those 21 files now postdates `UnrealEditor-RTAC.dll`'s last verified build
+(2026-09-02 23:24:25), so the DLL-postdates-source claim this phase's Definition of Done and
+`PHASE1_COMPLETED.md` both cite is stale until the next build. This is the same shape as the
+already-deferred `RTACDeterminismTest.cpp` "three"→"four" warning-count comment fix noted in
+`CLAUDE.md`'s Session Context — a known, deliberate gap, not a hidden one — and it does not reopen
+or alter any Definition of Done item or test-count claim above, which describe what was true as of
+the September 2, 2026 build those items cite. Re-verify the build-verification chain at the next
+actual build before trusting any test result against these files.
+
 ## Goal
 
 By the end of this phase the combat board exists as a real, addressable data structure and
