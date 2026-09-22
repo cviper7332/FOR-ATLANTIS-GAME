@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "Misc/AutomationTest.h"
 
 #if WITH_AUTOMATION_TESTS

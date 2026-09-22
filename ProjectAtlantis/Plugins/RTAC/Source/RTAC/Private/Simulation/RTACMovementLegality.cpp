@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "Simulation/RTACMovementLegality.h"
 
 #include "RTACModule.h" // LogRTAC — Rule 9: dedicated category, never LogTemp.
