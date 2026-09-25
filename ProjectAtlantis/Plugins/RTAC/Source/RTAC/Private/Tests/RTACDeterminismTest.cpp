@@ -401,7 +401,7 @@ namespace
  * ON THE EXPECTED LogRTAC WARNINGS. There are none by design — every mover in every run is a
  * spawned entity on a real tile, so `InvalidOrigin` is unreachable and nothing here logs at Warning.
  * A Warning appearing in this test's block is a genuine signal, not expected noise. That is the
- * opposite of the multi-entity test's three deliberate warnings, and worth knowing when reading the
+ * opposite of the multi-entity test's four deliberate warnings, and worth knowing when reading the
  * two tests' output in one log.
  *
  * Simulation-layer only (Rule 5): plain structs and free functions, no engine objects, no
