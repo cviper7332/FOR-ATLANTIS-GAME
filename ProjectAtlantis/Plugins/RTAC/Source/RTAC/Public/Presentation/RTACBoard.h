@@ -43,4 +43,25 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = "RTAC|Grid", meta = (ClampMin = "1"))
 	int32 Columns = FRTACGrid::DefaultColumns;
+
+	/**
+	 * World units (cm) per grid step -- the scale at which RTACGridToLocalOffset and
+	 * RTACWorldPositionToGridPosition convert between grid and local space. Defaults to 200,
+	 * giving the 3x6 default board a 6m x 12m footprint: room for a UE-scale character to stand
+	 * on a tile with margin, and closer to BN3's tile-to-character proportions than a 100-unit
+	 * tile, which reads as a diorama at UE scale.
+	 *
+	 * PRESENTATION-ONLY, and deliberately so. Nothing in Simulation/ reads this or varies with
+	 * it -- a tile index is not centimetres (Rule 10), and no combat rule changes when this
+	 * changes. That mechanical inertness is why this is a property with a comment rather than a
+	 * numbered Decision entry, unlike Decision #8's Rows/Columns, which feed a live open question
+	 * about whether a 3x6 board gives elevation enough room to read.
+	 *
+	 * This is the single source of truth for the value, satisfying RTACGridConversion.h's
+	 * standing ask that "exactly one TileSize value should exist per board and be passed to both
+	 * conversion directions" (Failure Mode 7). Callers read it from here rather than carrying
+	 * their own copy.
+	 */
+	UPROPERTY(EditAnywhere, Category = "RTAC|Grid", meta = (ClampMin = "1.0"))
+	float TileSize = 200.0f;
 };
