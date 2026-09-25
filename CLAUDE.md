@@ -28,12 +28,16 @@ gets rewritten as the project moves, and Phase 1's delivered surface would have 
 disappeared from the record the first time Phase 2 edited it. A completion record is frozen; this
 file is not. Do not reintroduce the list here (Failure Mode 7).
 
-**Five** of the six UE Automation Tests below were confirmed green together on September 2, 2026,
-against a DLL verified on disk to postdate every source edit (`UnrealEditor-RTAC.dll` 23:24:25 vs.
-last source edit 23:21:58; module loaded 23:25:08, tests run 23:25:35). The sixth,
-`RTAC.Presentation.GridConversion.ScreenToGridPosition` (Phase 2, 25/25), confirmed against a DLL
-relinked 2026-09-21 23:22:37, postdating every RTAC source file, and against the actual test run
-in `ProjectAtlantis.log` (2026.09.22-03:23:51, `Result={Success}`):
+**All six** UE Automation Tests below were confirmed green together on September 25, 2026, in a
+single run, against a DLL verified on disk to postdate every source edit (`UnrealEditor-RTAC.dll`
+2026-09-25 13:52:49 vs. last source edit 13:49:58; module loaded 13:53:47, tests run 13:54:23).
+This supersedes the previous split evidence chain here, in which five were confirmed together on
+September 2, 2026 and the sixth separately on September 21 against a different DLL.
+
+`RTAC.Presentation.GridConversion.ScreenToGridPosition` reads **43/43** below, not the 25/25 it
+carried before September 25, 2026: Decision #16's enactment (`3d81b75`) added Case 8, an 18-tile
+round-trip. Why, and what it guards against, lives in `docs/combat_decisions.md` -> Decision #16
+and is not restated here (Failure Mode 7).
 
 | Test | Phase | Assertions |
 |---|---|---|
@@ -42,7 +46,7 @@ in `ProjectAtlantis.log` (2026.09.22-03:23:51, `Result={Success}`):
 | `RTAC.Simulation.Movement.MultiEntity` | 1 | 74/74 |
 | `RTAC.Simulation.Rng.MatchStateLifecycle` | 1 | 24/24 |
 | `RTAC.Simulation.Rng.StreamSeedDerivation` | 1 | 6/6 |
-| `RTAC.Presentation.GridConversion.ScreenToGridPosition` | 2 | 25/25 |
+| `RTAC.Presentation.GridConversion.ScreenToGridPosition` | 2 | 43/43 |
 
 Zero `[FAIL]` lines across all six; zero `LogRTAC` errors; exactly four `LogRTAC` warnings per
 run of the five Phase 0/1 tests, all deliberately provoked by the multi-entity test (two spawn
@@ -576,6 +580,8 @@ phase.*
 conversion) done, `RTACGridToLocalOffset` in `6f60bfb`; Part A item 2 (screen↔grid hit-testing)
 implemented and geometry-verified but not checked, pending a real camera per Decision #15 —
 `RTACScreenToGridPosition`/`RTACWorldPositionToGridPosition` in `64b36b8`, test
-`RTAC.Presentation.GridConversion.ScreenToGridPosition` 25/25. Part B not started. Decision #15
+`RTAC.Presentation.GridConversion.ScreenToGridPosition` 43/43 (25/25 until Decision #16's
+enactment in `3d81b75` reversed the grid↔local axis mapping and added an 18-tile round-trip).
+Part B not started. Decision #15
 and the Match-State Ownership Open Question, both logged in `combat_decisions.md`, are Part B's
 open blockers. Full detail in `docs/PHASES.md` → Phase 2.*

@@ -499,7 +499,8 @@ phase exists to validate has already failed.
       space by the isometric projection, not an axis swap (Rule 10, Decision #1)
       — `RTACScreenToGridPosition`/`RTACWorldPositionToGridPosition` (`64b36b8`) are real
       deprojection-based code, not an axis swap, and the post-intersection geometry half is
-      test-verified (`RTAC.Presentation.GridConversion.ScreenToGridPosition`, 25/25). Left
+      test-verified (`RTAC.Presentation.GridConversion.ScreenToGridPosition`, 43/43 — 25/25
+      until Decision #16's enactment in `3d81b75` added Case 8's 18-tile round-trip). Left
       unchecked deliberately: the test's own header states the actual deprojection-through-camera
       path is untested "pending Decision #15," and Decision #15 confirms zero camera actors exist
       anywhere in the plugin yet. This checkbox's wording — "related to screen space by the
