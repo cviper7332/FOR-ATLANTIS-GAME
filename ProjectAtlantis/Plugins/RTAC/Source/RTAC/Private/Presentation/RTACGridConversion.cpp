@@ -6,7 +6,7 @@
 
 FVector RTACGridToLocalOffset(const FRTACGridPosition& Position, float TileSize)
 {
-	return FVector(Position.Column * TileSize, Position.Row * TileSize, 0.0f);
+	return FVector(Position.Row * TileSize, Position.Column * TileSize, 0.0f);
 }
 
 bool RTACWorldPositionToGridPosition(
@@ -20,8 +20,9 @@ bool RTACWorldPositionToGridPosition(
 	const FVector LocalPoint = Board.GetActorTransform().InverseTransformPosition(WorldPosition);
 
 	// floor(), not round() -- a tile's offset is its corner, per RTACGridToLocalOffset's own doc.
-	const int32 Column = FMath::FloorToInt32(LocalPoint.X / TileSize);
-	const int32 Row = FMath::FloorToInt32(LocalPoint.Y / TileSize);
+	// Row from X, Column from Y (Decision #16) -- must stay paired with RTACGridToLocalOffset.
+	const int32 Row = FMath::FloorToInt32(LocalPoint.X / TileSize);
+	const int32 Column = FMath::FloorToInt32(LocalPoint.Y / TileSize);
 
 	if (!Grid.IsValidPosition(Row, Column))
 	{

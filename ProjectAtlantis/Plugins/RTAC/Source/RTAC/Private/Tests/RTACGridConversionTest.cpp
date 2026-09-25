@@ -40,9 +40,9 @@
  * recover a DIFFERENT LocalPoint than the one used to build the input, landing on a wrong tile or
  * a wrong bounds result (Failure Mode 8 — a test that cannot fail is not evidence).
  *
- * Tile (Row, Column)'s local region is X in [Column*TileSize, (Column+1)*TileSize),
- * Y in [Row*TileSize, (Row+1)*TileSize), per RTACGridToLocalOffset's own doc that a tile's
- * offset is its corner.
+ * Tile (Row, Column)'s local region is X in [Row*TileSize, (Row+1)*TileSize),
+ * Y in [Column*TileSize, (Column+1)*TileSize), per RTACGridToLocalOffset's own doc that a tile's
+ * offset is its corner, as reversed by Decision #16.
  *
  * WHY A UWORLD. ARTACBoard is an AActor and the guard-clause cases need a real (if unpossessed)
  * APlayerController, so this test needs a world to spawn into -- the first RTAC test that does.
@@ -115,10 +115,10 @@ bool FRTACGridConversionScreenToGridPositionTest::RunTest(const FString& Paramet
 
 	if (Board != nullptr)
 	{
-		// --- Case 1: tile center -- local (250,150,0), inside tile (1,2)'s region
-		// [200,300) x [100,200). Reuses (1,2) as BasicLifecycle's own "known tile." ---
+		// --- Case 1: tile center -- local (150,250,0), inside tile (1,2)'s region
+		// [100,200) x [200,300). Reuses (1,2) as BasicLifecycle's own "known tile." ---
 		{
-			const FVector WorldHit = Board->GetActorTransform().TransformPosition(FVector(250.0f, 150.0f, 0.0f));
+			const FVector WorldHit = Board->GetActorTransform().TransformPosition(FVector(150.0f, 250.0f, 0.0f));
 			FRTACGridPosition OutPosition;
 			const bool bResult = RTACWorldPositionToGridPosition(WorldHit, *Board, Grid, TileSize, OutPosition);
 			CheckTrue(TEXT("Tile center: resolves successfully"), bResult);
@@ -126,11 +126,11 @@ bool FRTACGridConversionScreenToGridPositionTest::RunTest(const FString& Paramet
 			CheckEqual(TEXT("Tile center: OutPosition.Column is 2"), OutPosition.Column, 2);
 		}
 
-		// --- Case 2: exact corner boundary -- local (300,200,0) is tile (2,3)'s own corner
+		// --- Case 2: exact corner boundary -- local (200,300,0) is tile (2,3)'s own corner
 		// (RTACGridToLocalOffset(2,3) returns exactly this). Proves the boundary belongs to the
 		// tile whose corner it is, not the tile above or to the left. ---
 		{
-			const FVector WorldHit = Board->GetActorTransform().TransformPosition(FVector(300.0f, 200.0f, 0.0f));
+			const FVector WorldHit = Board->GetActorTransform().TransformPosition(FVector(200.0f, 300.0f, 0.0f));
 			FRTACGridPosition OutPosition;
 			const bool bResult = RTACWorldPositionToGridPosition(WorldHit, *Board, Grid, TileSize, OutPosition);
 			CheckTrue(TEXT("Exact corner boundary: resolves successfully"), bResult);
@@ -138,12 +138,12 @@ bool FRTACGridConversionScreenToGridPositionTest::RunTest(const FString& Paramet
 			CheckEqual(TEXT("Exact corner boundary: OutPosition.Column is 3"), OutPosition.Column, 3);
 		}
 
-		// --- Case 3: floor-vs-round discriminator -- local (280,180,0), still inside tile
+		// --- Case 3: floor-vs-round discriminator -- local (180,280,0), still inside tile
 		// (1,2)'s region. floor() correctly gives (1,2); a round() regression would wrongly give
-		// (2,3) (round(2.8)=3, round(1.8)=2). Case 2 alone can't catch this -- an exact multiple
-		// rounds the same either way. ---
+		// (2,3) (round(1.8)=2 for Row, round(2.8)=3 for Column). Case 2 alone can't catch this --
+		// an exact multiple rounds the same either way. ---
 		{
-			const FVector WorldHit = Board->GetActorTransform().TransformPosition(FVector(280.0f, 180.0f, 0.0f));
+			const FVector WorldHit = Board->GetActorTransform().TransformPosition(FVector(180.0f, 280.0f, 0.0f));
 			FRTACGridPosition OutPosition;
 			const bool bResult = RTACWorldPositionToGridPosition(WorldHit, *Board, Grid, TileSize, OutPosition);
 			CheckTrue(TEXT("Floor-vs-round: resolves successfully"), bResult);
@@ -151,10 +151,10 @@ bool FRTACGridConversionScreenToGridPositionTest::RunTest(const FString& Paramet
 			CheckEqual(TEXT("Floor-vs-round: OutPosition.Column is 2, not rounded to 3"), OutPosition.Column, 2);
 		}
 
-		// --- Case 4: just outside the grid, upper bound -- local (600,150,0) -> Column = 6,
+		// --- Case 4: just outside the grid, upper bound -- local (150,600,0) -> Column = 6,
 		// one past the last valid column (0..5). ---
 		{
-			const FVector WorldHit = Board->GetActorTransform().TransformPosition(FVector(600.0f, 150.0f, 0.0f));
+			const FVector WorldHit = Board->GetActorTransform().TransformPosition(FVector(150.0f, 600.0f, 0.0f));
 			FRTACGridPosition OutPosition(-99, -99);
 			const bool bResult = RTACWorldPositionToGridPosition(WorldHit, *Board, Grid, TileSize, OutPosition);
 			CheckFalse(TEXT("Just outside grid (upper bound): returns false"), bResult);
@@ -162,12 +162,12 @@ bool FRTACGridConversionScreenToGridPositionTest::RunTest(const FString& Paramet
 			CheckEqual(TEXT("Just outside grid (upper bound): OutPosition.Column unmodified"), OutPosition.Column, -99);
 		}
 
-		// --- Case 5: just outside the grid, lower bound -- local (-50,150,0) -> Column = -1.
+		// --- Case 5: just outside the grid, lower bound -- local (150,-50,0) -> Column = -1.
 		// Both bounds directions tested, same discipline as BasicLifecycle's own two-directions
 		// note: testing only the upper bound would let a missing `>= 0` half of a check pass
 		// unnoticed. ---
 		{
-			const FVector WorldHit = Board->GetActorTransform().TransformPosition(FVector(-50.0f, 150.0f, 0.0f));
+			const FVector WorldHit = Board->GetActorTransform().TransformPosition(FVector(150.0f, -50.0f, 0.0f));
 			FRTACGridPosition OutPosition(-99, -99);
 			const bool bResult = RTACWorldPositionToGridPosition(WorldHit, *Board, Grid, TileSize, OutPosition);
 			CheckFalse(TEXT("Just outside grid (lower bound): returns false"), bResult);
@@ -193,6 +193,37 @@ bool FRTACGridConversionScreenToGridPositionTest::RunTest(const FString& Paramet
 			CheckFalse(TEXT("Unpossessed PlayerController (no LocalPlayer): RTACScreenToGridPosition returns false"), bResult);
 			CheckEqual(TEXT("Unpossessed PlayerController: OutPosition.Row unmodified"), OutPosition.Row, -99);
 			CheckEqual(TEXT("Unpossessed PlayerController: OutPosition.Column unmodified"), OutPosition.Column, -99);
+		}
+
+		// --- Case 8: round-trip identity over EVERY tile -- the only coverage
+		// RTACGridToLocalOffset has anywhere (nothing else in the repo calls it), and the only
+		// mechanical guard that the two conversion directions stay paired. For each of the 18
+		// tiles (3x6, Decision #8): take the tile's corner offset from RTACGridToLocalOffset, step
+		// half a tile into its interior, transform to world through Board's own non-identity
+		// transform, and invert. Failure Mode 4 asks for a round-trip identity wherever one
+		// exists; this is that one.
+		//
+		// WHY ALL 18 AND NOT A SAMPLE (Failure Mode 5). The three diagonal tiles (0,0), (1,1) and
+		// (2,2) round-trip correctly even when Decision #16's reversal is applied to only ONE of
+		// the two directions -- Row and Column are interchangeable on the diagonal, so the bug
+		// cancels. A sample that happened to hit only those would report success against exactly
+		// the defect this case exists to catch. The other 15 tiles are the ones carrying evidence.
+		for (int32 Row = 0; Row < FRTACGrid::DefaultRows; ++Row)
+		{
+			for (int32 Column = 0; Column < FRTACGrid::DefaultColumns; ++Column)
+			{
+				const FVector LocalInterior =
+					RTACGridToLocalOffset(FRTACGridPosition(Row, Column), TileSize)
+					+ FVector(TileSize * 0.5f, TileSize * 0.5f, 0.0f);
+				const FVector WorldHit = Board->GetActorTransform().TransformPosition(LocalInterior);
+
+				FRTACGridPosition OutPosition(-99, -99);
+				const bool bResult = RTACWorldPositionToGridPosition(WorldHit, *Board, Grid, TileSize, OutPosition);
+
+				const FString What = FString::Printf(
+					TEXT("Round-trip identity: tile (%d,%d) recovers itself"), Row, Column);
+				CheckTrue(*What, bResult && OutPosition.Row == Row && OutPosition.Column == Column);
+			}
 		}
 	}
 

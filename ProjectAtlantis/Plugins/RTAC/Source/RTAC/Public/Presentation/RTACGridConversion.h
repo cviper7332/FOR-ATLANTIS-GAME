@@ -20,19 +20,25 @@ struct FRTACGrid;
  * per Rule 10, not folded in ahead of Decision #3's core-before-elevation sequencing.
  *
  * Returns an offset relative to the owning board's own local origin, not an absolute world
- * location -- the board actor supplies absolute placement via its own transform. Column maps to
- * the local X axis, Row maps to the local Y axis, matching Decision #5's wider-than-deep board
- * (6 columns x 3 rows default); this pairing is the single source of truth for that mapping
- * rather than left to whichever axis a caller assumes (Rule 5 Addendum #3).
+ * location -- the board actor supplies absolute placement via its own transform. Row maps to the
+ * local X axis, Column maps to the local Y axis (Decision #16); this pairing is the single source
+ * of truth for that mapping rather than left to whichever axis a caller assumes.
  *
- * A tile's offset is its CORNER, not its center: tile (Row, Column) spans
- * [Column*TileSize, (Column+1)*TileSize) x [Row*TileSize, (Row+1)*TileSize). An inverse
+ * Decision #16 reversed this pairing from the Column->X, Row->Y one shipped in 6f60bfb. The old
+ * pairing could not satisfy Decision #15's on-screen direction table under ANY downward-looking
+ * camera: Column+ reading screen-right and Row+ reading screen-up are mutually exclusive there,
+ * a handedness obstruction rather than a tuning problem. Do not "restore" the old pairing on the
+ * strength of its wider-than-deep rationale -- that was a claim about how the board reads on
+ * screen, which is exactly what this reversal secures. Derivation is in Decision #16.
+ *
+ * A tile's offset is its CORNER, not its center: in local X x Y, tile (Row, Column) spans
+ * [Row*TileSize, (Row+1)*TileSize) x [Column*TileSize, (Column+1)*TileSize). An inverse
  * (screen/world -> grid) conversion must floor(), not round(), to recover the containing tile
  * from an arbitrary interior point -- round() misidentifies any point past a tile's midpoint.
  *
  * @param Position  Grid position (Decision #5 rows x columns), read-only.
  * @param TileSize  World units (cm) per grid step. Caller-supplied, not hardcoded here.
- * @return Local-space offset: (Column * TileSize, Row * TileSize, 0).
+ * @return Local-space offset: (Row * TileSize, Column * TileSize, 0).
  */
 FVector RTACGridToLocalOffset(const FRTACGridPosition& Position, float TileSize);
 
