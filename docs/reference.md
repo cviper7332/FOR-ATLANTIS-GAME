@@ -248,6 +248,79 @@ current MCP tooling, not a settled or closed question** — a future session wit
 or test-listing tool available should re-attempt this verification rather than assume the gap
 still holds.
 
+### Known unexplained intermittent: editor crash during transient-world creation in automation tests
+
+**Status: open, contained, not diagnosed.** Recorded here so a future occurrence is recognised
+rather than re-investigated from scratch. First observed September 25, 2026.
+
+**Symptom.** An automation test that creates its own transient `UWorld` intermittently kills the
+editor. Observed roughly 1 run in 5. The signature is specific enough to identify on sight:
+
+- The test logs its `— starting ===` line and then **zero `[PASS]` lines** — it dies before its
+  first assertion.
+- `Saved/Crashes/` gains two entries: an **Ensure** (`RendererScene.cpp:4337`,
+  `!ActorComponent->IsRegistered() || ActorComponent->GetScene() != this`, naming a
+  GameplayDebugger `InputComponent` in `/Engine/Transient.World_N`) and, ~2s later, a fatal
+  **Assert** (`RendererScene.cpp:1279`, `Primitives.Num() == 0`).
+- The crash callstack's only symbolised project frame is the test's own `UWorld::CreateWorld`
+  line — world **creation**, not teardown.
+- The session log ends mid-callstack with no `LogExit` lines.
+
+**Practical mitigation: restart the editor and re-run.** It does not reproduce reliably and it
+cannot produce a false green — a killed editor logs no `complete: N/N` line at all, so there is
+no silent-wrong-result risk. Do not re-derive the diagnosis below.
+
+**What is confirmed** (each verified live, not inferred):
+
+- `AActor::RouteEndPlay` unregisters **no** components (`Actor.cpp:3221` — it calls `EndPlay()`
+  and touches components only via `ClearComponentOverlaps()`, gated on
+  `EEndPlayReason::RemovedFromWorld`). Demonstrated at runtime by a two-point component census
+  showing byte-identical before/after sets on a green run.
+- A test world legitimately carries ~11 scene-bound components at teardown, 6 of them
+  `UPrimitiveComponent` (4 world `LineBatchComponent`s, 2 `BrushComponent`s from `Brush_0` and
+  `DefaultPhysicsVolume_0`). This is **normal** — `UWorld::ClearWorldComponents`
+  (`World.cpp:2923`) unregisters exactly these, and every green run has them too.
+- `FScene::~FScene` is **not** called by `DestroyWorld`. `UWorld::DestroyWorld` (`World.cpp:2770`)
+  never releases the scene; `Scene->Release()` happens in `UWorld::FinishDestroy`
+  (`World.cpp:1604`) during **garbage collection**.
+- The ensure and the assert concern **different objects** — the ensure's `InputComponent` is not
+  a primitive.
+
+**What is ruled out** (five hypotheses, each falsified):
+
+1. *Missing `CollectGarbage()` in teardown* — Epic's own reference (`FActorTestSpawner`) does not
+   do this, and GC would not run between `RouteEndPlay` and `DestroyWorld` anyway.
+2. *Missing `DestroySpawnedActors`* — the at-risk primitives are world-owned and world-default,
+   not test-spawned, so destroying test actors would not unregister any of them.
+3. *A teardown-sequencing defect* — the crash occurs during world **creation**, before the first
+   assertion; no teardown change can reach it.
+4. *A leaked `UWorld`* — directly falsified. A test world survives ~26 minutes only because an
+   idle editor runs no GC; a forced collection (PIE start/stop, which triggers
+   `UEditorEngine::EndPlayMap`'s `CollectGarbage` at `PlayLevel.cpp:502`) purges it cleanly,
+   along with its actors. `DestroyWorldContext` (`UnrealEngine.cpp:17330`) and the root-set
+   handling are both correct.
+5. *Object-name reuse from omitting `EUniqueObjectNameOptions::GloballyUnique`* — with a null
+   `Parent`, `MakeUniqueObjectName` uses the monotonic `Class->ClassUnique` counter
+   (`UObjectGlobals.cpp:2705`) and the reuse path bails at `:2542`. No collision is possible
+   within a session.
+
+**What remains unknown:** which scene was being destroyed, from what call path, and why it is
+intermittent.
+
+**What would be needed to resolve it:** a symbolised callstack from the minidump in
+`Saved/Crashes/`. This requires the Epic Launcher's "Editor symbols for debugging" component —
+`UnrealEditor-Renderer.pdb` is not part of a default install, which is why the existing crash
+logs show `UnrealEditor-Renderer.dll!UnknownFunction []`. Judged not worth the cost at the
+observed frequency, given the failure is loud rather than silent.
+
+**Reusable technique.** The two-point component census that produced the `RouteEndPlay` finding is
+a port of the engine's own diagnostic at `RendererScene.cpp:1266-1276`, which Epic ships behind
+`#if 0` (unreachable in an installed binary engine — the Renderer module cannot be recompiled).
+Every API it needs is public: `FThreadSafeObjectIterator` (`UObjectIterator.h`),
+`UActorComponent::GetScene` (`ActorComponent.h:1195`), `UActorComponent::IsRegistered` (`:1316`),
+`UWorld::Scene` (`World.h:1504`). Taking the census at two points rather than one is what made
+the finding provable on a passing run, with no reproduction required.
+
 ---
 
 ## Camera and Projection (UE5.8)
