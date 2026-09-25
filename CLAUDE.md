@@ -563,12 +563,14 @@ Cosmetic, but flag before shipping anything: `Config/DefaultGame.ini` still has
 ---
 
 *Last Updated: September 25, 2026*
-*Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), CLOSED — enacted in 6342e68,
-c436334, f1363b4, 9595330, 37f68cb, e0edee9. Decisions #1–#14 logged;
-movement-legality check and resolution implemented; match-state container and entity spawn landed
-(Decision #11); Decision #12's `NotAdjacent` enacted in 37f68cb. All seven Definition of Done
-items satisfied: multi-entity test green at 74/74, determinism test green at 51/51. Phase Exit
-Review run September 3, 2026 — findings in `docs/PHASE1_CHECK.md`.*
+*Phase 1 (Grid & Movement — Headless Simulation) closed September 3, 2026, enacted in 6342e68,
+c436334, f1363b4, 9595330, 37f68cb, e0edee9. Decisions #1–#14 were logged; the movement-legality
+check and its resolution were implemented; the match-state container and entity spawn landed
+(Decision #11); Decision #12's `NotAdjacent` was enacted in 37f68cb. All seven Definition of Done
+items were satisfied: multi-entity test green at 74/74, determinism test green at 51/51. Phase
+Exit Review ran September 3, 2026 — findings in `docs/PHASE1_CHECK.md`, authoritative completion
+record in `docs/PHASE1_COMPLETED.md`. History only — see the paragraph below for the current
+phase.*
 
 *Phase 2 (Presentation & First Playable Board), OPEN as of this update. Part A item 1 (grid↔world
 conversion) done, `RTACGridToLocalOffset` in `6f60bfb`; Part A item 2 (screen↔grid hit-testing)
