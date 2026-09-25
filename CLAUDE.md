@@ -1,21 +1,25 @@
 # CLAUDE.md — FOR ATLANTIS (UE5 Project)
 
 ## Session Context
-**Last Updated:** September 21, 2026
+**Last Updated:** September 25, 2026
 **Engine:** Unreal Engine 5.8 (`EngineAssociation: "5.8"`, `IncludeOrderVersion: Unreal5_8`, RHI: DX12)
 **Development floor:** UE 5.8, hard requirement — not an API-compatibility choice but an
 agent-workflow dependency: CC/CC-Opus's live editor introspection (MCP) is a 5.8 Experimental
 feature, confirmed absent from 5.6 and 5.7 on this machine. See `docs/combat_decisions.md`
 Decision #7. RTAC's own *consumer* portability floor (what a project dropping RTAC in requires)
 is separate and still undetermined — see `docs/PHASES.md` Phase 8.
-**Phase:** RTAC Phase 1 (Grid & Movement — Headless Simulation), `CLOSED`. Phase 0 (Foundation &
-Test Harness) is `CLOSED`. Combat code exists and compiles — see Current state below.
+**Phase:** RTAC Phase 2 (Presentation & First Playable Board), `OPEN` — Part A in progress, Part B
+not started. Phase 1 and Phase 0 are `CLOSED`. Combat code exists and compiles — see Current
+state below.
 
 **Current state:** The stock UE5 Third Person template plus its three official variants
 (Combat / Platforming / SideScrolling) remains unmodified. Alongside it, the RTAC plugin holds
-3,107 lines of real, compiling simulation code across 20 source files — grid and tile types, the
-entity struct, per-tile ownership, the per-match state container, entity spawn, and the
-movement-legality check and its resolution.
+3,107 lines of real, compiling simulation code across 20 source files from Phase 1 (grid and tile
+types, the entity struct, per-tile ownership, the per-match state container, entity spawn, and
+the movement-legality check and its resolution) plus Phase 2 Part A's first presentation-layer
+code: `RTACBoard`, the grid↔world conversion function, and screen↔grid hit-testing geometry —
+see `docs/PHASES.md` Phase 2 for exactly what's done and what's outstanding within Part A, and
+for Part B's open blockers (Decision #15, Match-State Ownership).
 
 **The type-by-type inventory of what Phase 1 delivered is NOT restated here. It is authoritative
 in `docs/PHASE1_COMPLETED.md` → "What Was Built — Simulation Surface."** It used to live in this
@@ -24,9 +28,12 @@ gets rewritten as the project moves, and Phase 1's delivered surface would have 
 disappeared from the record the first time Phase 2 edited it. A completion record is frozen; this
 file is not. Do not reintroduce the list here (Failure Mode 7).
 
-**Five** UE Automation Tests exist and pass — all five confirmed green on September 2, 2026,
+**Five** of the six UE Automation Tests below were confirmed green together on September 2, 2026,
 against a DLL verified on disk to postdate every source edit (`UnrealEditor-RTAC.dll` 23:24:25 vs.
-last source edit 23:21:58; module loaded 23:25:08, tests run 23:25:35):
+last source edit 23:21:58; module loaded 23:25:08, tests run 23:25:35). The sixth,
+`RTAC.Presentation.GridConversion.ScreenToGridPosition` (Phase 2, 25/25), confirmed against a DLL
+relinked 2026-09-21 23:22:37, postdating every RTAC source file, and against the actual test run
+in `ProjectAtlantis.log` (2026.09.22-03:23:51, `Result={Success}`):
 
 | Test | Phase | Assertions |
 |---|---|---|
@@ -35,10 +42,11 @@ last source edit 23:21:58; module loaded 23:25:08, tests run 23:25:35):
 | `RTAC.Simulation.Movement.MultiEntity` | 1 | 74/74 |
 | `RTAC.Simulation.Rng.MatchStateLifecycle` | 1 | 24/24 |
 | `RTAC.Simulation.Rng.StreamSeedDerivation` | 1 | 6/6 |
+| `RTAC.Presentation.GridConversion.ScreenToGridPosition` | 2 | 25/25 |
 
-Zero `[FAIL]` lines; zero `LogRTAC` errors; exactly four `LogRTAC` warnings per run, all
-deliberately provoked by the multi-entity test (two spawn refusals, one `NotAdjacent`, one
-`InvalidOrigin`).
+Zero `[FAIL]` lines across all six; zero `LogRTAC` errors; exactly four `LogRTAC` warnings per
+run of the five Phase 0/1 tests, all deliberately provoked by the multi-entity test (two spawn
+refusals, one `NotAdjacent`, one `InvalidOrigin`) — the Phase 2 test logs none by design.
 **Both of Phase 1's two tests are now done.** `DeterministicReplay` was green on its first build
 and now passes 51/51, closing Phase 1's last outstanding Definition of Done item — see
 `docs/PHASES.md` for the
@@ -52,15 +60,19 @@ Success-with-warnings amber rather than green. The full diagnosis — log eviden
 source lines that drive the colour — lives in `RTACMovementTest.cpp`'s own header comment, next to
 the warnings that cause it, and is deliberately not restated here (Failure Mode 7).
 
-All design work lives in `docs/combat_decisions.md` — Decisions #1–#14, plus a speculative Open
-Question (mid-battle entity-defection to a third party, not Phase 1 scope).
+All design work lives in `docs/combat_decisions.md` — Decisions #1–#15, plus a Match-State
+Ownership Open Question (logged September 25, 2026, blocks Phase 2 Part B) and a speculative one
+(mid-battle entity-defection to a third party, not current-phase scope).
 
-**Next milestone — Phase 2 (Presentation & First Playable Board). Phase 1 is `CLOSED`.** The Phase
-Exit Review ran September 3, 2026; its full findings live in `docs/PHASE1_CHECK.md` and are not
-restated here. In summary: all seven Definition of Done items satisfied with a passing test artifact
-behind each, all 8 Recurring Failure Modes checked against the phase's new code, no critical bugs,
-the Safety Ruleset re-read live rather than inherited from Phase 0's review, and Rule 5's and
-Rule 10's absence-claims re-grepped from scratch rather than carried forward.
+**Phase 1 is `CLOSED`; Phase 2 is `OPEN` and in progress.** The Phase 1 Exit Review ran
+September 3, 2026; its full findings live in `docs/PHASE1_CHECK.md` and are not restated here. In
+summary: all seven Definition of Done items satisfied with a passing test artifact behind each,
+all 8 Recurring Failure Modes checked against the phase's new code, no critical bugs, the Safety
+Ruleset re-read live rather than inherited from Phase 0's review, and Rule 5's and Rule 10's
+absence-claims re-grepped from scratch rather than carried forward. Phase 2's own status,
+Definition of Done, and open blockers live in `docs/PHASES.md` and are not restated here either —
+see that file's Phase 2 section rather than this one for current detail, per the same
+wrong-home reasoning as the Phase 1 inventory note above.
 
 *One DoD item carries a caveat that outlives the phase, and it is not paperwork.* The determinism
 item reads "same seed + same input sequence"; only the **input-sequence** axis is tested. Phase 1
@@ -550,10 +562,18 @@ Cosmetic, but flag before shipping anything: `Config/DefaultGame.ini` still has
 
 ---
 
-*Last Updated: September 21, 2026*
+*Last Updated: September 25, 2026*
 *Phase: RTAC Phase 1 (Grid & Movement — Headless Simulation), CLOSED — enacted in 6342e68,
 c436334, f1363b4, 9595330, 37f68cb, e0edee9. Decisions #1–#14 logged;
 movement-legality check and resolution implemented; match-state container and entity spawn landed
 (Decision #11); Decision #12's `NotAdjacent` enacted in 37f68cb. All seven Definition of Done
 items satisfied: multi-entity test green at 74/74, determinism test green at 51/51. Phase Exit
 Review run September 3, 2026 — findings in `docs/PHASE1_CHECK.md`.*
+
+*Phase 2 (Presentation & First Playable Board), OPEN as of this update. Part A item 1 (grid↔world
+conversion) done, `RTACGridToLocalOffset` in `6f60bfb`; Part A item 2 (screen↔grid hit-testing)
+implemented and geometry-verified but not checked, pending a real camera per Decision #15 —
+`RTACScreenToGridPosition`/`RTACWorldPositionToGridPosition` in `64b36b8`, test
+`RTAC.Presentation.GridConversion.ScreenToGridPosition` 25/25. Part B not started. Decision #15
+and the Match-State Ownership Open Question, both logged in `combat_decisions.md`, are Part B's
+open blockers. Full detail in `docs/PHASES.md` → Phase 2.*

@@ -463,6 +463,12 @@ reasoning lives in the decision addendum and is not restated here.
 
 **Status:** `OPEN`
 
+> **Progress note, September 25, 2026.** Part A item 1 is done — see the checkbox below. Item 2
+> is implemented but deliberately not checked — see its own note. Part B (camera actor, PIE
+> playability) has not been started. Decision #15 (input direction convention) is logged and
+> `OPEN`, and a new Open Question, Match-State Ownership, was logged the same date
+> (`combat_decisions.md`) — both block Part B's move-input glue and neither is resolved yet.
+
 ## Goal
 
 By the end of this phase the board is visible and playable: it renders in an isometric 2.5D view
@@ -483,10 +489,22 @@ phase exists to validate has already failed.
 ## Definition of Done
 
 **Part A**
-- [ ] Grid ↔ world-unit conversion exists in exactly one named function, in the presentation
+- [x] Grid ↔ world-unit conversion exists in exactly one named function, in the presentation
       layer only (Rule 10)
+      — `RTACGridToLocalOffset` (`RTACGridConversion.h/.cpp`, `6f60bfb`). Confirmed the sole
+      named grid↔world function: no other conversion exists in `Presentation/`, and nothing in
+      `Simulation/` calls it. Flat per Decision #1 — no isometric skew or elevation contribution
+      folded in at this boundary.
 - [ ] Screen-space ↔ grid-space hit-testing is implemented in grid space, related to screen
       space by the isometric projection, not an axis swap (Rule 10, Decision #1)
+      — `RTACScreenToGridPosition`/`RTACWorldPositionToGridPosition` (`64b36b8`) are real
+      deprojection-based code, not an axis swap, and the post-intersection geometry half is
+      test-verified (`RTAC.Presentation.GridConversion.ScreenToGridPosition`, 25/25). Left
+      unchecked deliberately: the test's own header states the actual deprojection-through-camera
+      path is untested "pending Decision #15," and Decision #15 confirms zero camera actors exist
+      anywhere in the plugin yet. This checkbox's wording — "related to screen space by the
+      isometric projection" — presupposes a projection that doesn't exist yet to relate to; it
+      closes once Part B's camera is built and the deprojection path is exercised against it.
 
 **Part B — requires UE5 open**
 - [ ] **Falsifiable test:** changing the camera (e.g. swapping isometric angle) requires zero

@@ -1501,6 +1501,27 @@ Brainstormed directions, none locked, to revisit once the core loop is playable:
 
 ---
 
+### Match-State Ownership — Who Holds `FRTACMatchState` at Runtime (blocks Phase 2 Part B)
+
+- Undecided which UE5 construct owns the live `FRTACMatchState` during a match: `GameMode`, a
+  dedicated subsystem (World Subsystem / Game Instance Subsystem), or a dedicated
+  controller/actor. Phase 1 deliberately built `FRTACMatchState` as a plain, ownerless struct
+  (Rule 5/Rule 6) and took no position on this — it wasn't Phase 1's question to answer.
+- **Why it matters:** it blocks Phase 2 Part B's move-input glue. The Enhanced Input action that
+  calls `RTACResolveMove` needs a live `FRTACMatchState` to resolve against, which means knowing
+  where to read one from at runtime. Raised during Phase 2 Part A work (Sept 21–25, 2026) but not
+  written down at the time — recorded here now rather than lost further.
+- Not blocking Part A — `RTACGridToLocalOffset` and `RTACScreenToGridPosition`/
+  `RTACWorldPositionToGridPosition` operate on a caller-supplied `FRTACGrid`/`FRTACMatchState`
+  reference and don't care who owns it.
+- **Resolves by:** picking one of the above (or another option) and recording the choice as its
+  own numbered Decision entry, citing Rule 5 (Simulation/Presentation Separation) and Rule 6
+  (no hidden/global state) as the constraints the answer must satisfy — whichever owner is chosen
+  must hold the state explicitly, not implicitly. Required before Part B's move-input glue can be
+  implemented.
+
+---
+
 ### Entity Allegiance Change — Mid-Battle Defection to a Third Party (post-core, speculative)
 
 **Not a BN3 mechanic.** Confirmed against source material (Omar): in the mainline games, tile
@@ -1591,3 +1612,6 @@ entry, not an extrapolation from this Open Question.
 #13 OPEN; #14 RATIFIED, logged at the Phase 1 Exit Review; #15 OPEN, logged during Phase 2 Part B
 design (input direction convention) — camera-orientation work to satisfy it on screen is still
 outstanding, per #15's own text.*
+
+*Addendum, September 25, 2026 — new Open Question logged: Match-State Ownership, blocking Phase 2
+Part B's move-input glue. No Decision numbers change; #1–#15 status unchanged from above.*
