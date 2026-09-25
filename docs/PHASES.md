@@ -510,7 +510,57 @@ phase exists to validate has already failed.
 - [ ] **Falsifiable test:** changing the camera (e.g. swapping isometric angle) requires zero
       changes to simulation code. This is the operational test of Rule 5 and Decision #1 together
       — direct analogue of PRS Phase 3's "adding green phosphor required zero structural changes."
+
+      > **Mechanism — designed and approved, not yet implemented.** Two PIE runs (or two
+      > `ARTACBoard`/camera configurations in one editor session), differing only in camera
+      > rotation:
+      > 1. Before/after each run: `git diff --stat -- Plugins/RTAC/Source/RTAC/Public/Simulation/
+      >    Plugins/RTAC/Source/RTAC/Private/Simulation/` — confirm empty, i.e. the camera change
+      >    touched zero files under `Simulation/`. This is the literal falsifiable claim from the
+      >    DoD text ("zero changes to simulation code"), checkable by `git diff` alone, no code
+      >    execution needed, and it can genuinely fail — a second camera angle requiring a
+      >    `Simulation/` touch means the diff is non-empty and the item fails outright.
+      > 2. Re-run all existing automation tests after the camera change and confirm identical
+      >    pass counts — demonstrating the swap didn't require and didn't silently break anything
+      >    the simulation layer depends on.
+      >
+      > **Explicitly not the criterion:** "both angles resolve the same screen click to the same
+      > tile" — a rotated camera legitimately sees a different point on the board at the same
+      > screen pixel, so that would be a plausible-sounding but wrong test. The actual DoD claim
+      > is narrower: zero `Simulation/` diff.
+      >
+      > **Blocked on:** Decision #15 (no camera actor exists yet to swap) — implementation
+      > cannot start until Part B's camera lands.
 - [ ] Board renders and is playable in PIE at the dimensions chosen in Phase 1
+
+      > **Move-input glue — designed and approved, not yet implemented.** One Enhanced Input
+      > action per direction (Up/Down/Left/Right), bound via an Input Mapping Context, each
+      > firing on a discrete press — matching Decision #10 Ruling 1 ("one button press moves
+      > exactly one tile"), not a held-axis value.
+      >
+      > **Call path:** `RTACResolveMove`'s real signature is `ERTACMoveLegality
+      > RTACResolveMove(FRTACEntity& Entity, FRTACGridPosition Destination, FRTACGrid& Grid)` —
+      > takes the entity and grid directly. Glue needs a reference to the specific `FRTACEntity`
+      > being moved (via `FRTACMatchState::FindEntity(EntityId)`) and a reference to
+      > `FRTACMatchState::Grid`.
+      >
+      > **Where it lives:** per Rule 11, new code under `Plugins/RTAC/Source/RTAC/.../
+      > Presentation/` — a small, non-`AActor` presentation-side type (a `UActorComponent` on the
+      > controlled entity's pawn, or a lightweight controller object) that:
+      > 1. Owns/references the live `FRTACMatchState` (architecture NOT decided here — that's the
+      >    Match-State Ownership Open Question, `combat_decisions.md`).
+      > 2. On each discrete input action, computes `Destination = {Entity.Position.Row + DeltaRow,
+      >    Entity.Position.Column + DeltaColumn}` using Decision #15's direction convention, calls
+      >    `RTACResolveMove(Entity, Destination, Grid)`.
+      > 3. Reads the (possibly mutated) `Entity.Position` back and calls `RTACGridToLocalOffset`
+      >    to update the pawn's world transform for rendering.
+      >
+      > This is presentation calling into simulation and reading the result back — never the
+      > reverse, per Rule 5.
+      >
+      > **Blocked on:** Decision #15 (direction convention needs a verified camera to be
+      > trustworthy on screen) and the Match-State Ownership Open Question (glue can't be wired
+      > to a specific owner until that's resolved).
 
 ---
 
