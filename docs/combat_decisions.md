@@ -1463,7 +1463,7 @@ careful about this exact hazard.
 **Date:** September 25, 2026
 **Phase:** RTAC Phase 2 (Presentation & First Playable Board)
 **Author:** Omar
-**Status:** OPEN
+**Status:** CLOSED — enacted in `3d81b75`
 
 **Decision:** `RTACGridToLocalOffset` maps **Row to the board's local X axis and Column to local
 Y**, reversing the pairing shipped in `6f60bfb`. `RTACWorldPositionToGridPosition` inverts the
@@ -1567,6 +1567,37 @@ re-derivation rather than by agreement (Rule 15, Failure Mode 8).
 - Visual confirmation in PIE that the corrected mapping plus a built camera actually satisfy
   Decision #15's table. This entry makes that confirmation *possible*; it does not perform it, and
   Decision #15's standing requirement that someone perform it is unchanged.
+
+**Addendum, September 25, 2026 — enacted in `3d81b75`. Status moved OPEN → CLOSED.**
+
+The reversal is enacted in both directions, build-verified, and covered by a test that did not
+exist when this entry was written. Nothing above is edited; this addendum is the record of what
+enactment actually did, per Rule 4.
+
+- **The mapping** — `RTACGridToLocalOffset` returns `(Row * TileSize, Column * TileSize, 0)`, and
+  `RTACWorldPositionToGridPosition` recovers Row from `LocalPoint.X`, Column from `LocalPoint.Y`.
+  A relabel exactly as specified: no negation anywhere, half-open corner semantics untouched.
+- **No signature changed, and `git diff` over `Simulation/` is empty** — both as predicted above.
+  Phase 2 Part B's falsifiable-test criterion is unaffected.
+- **The wider-than-deep rationale is retired from `RTACGridConversion.h`**, replaced by a note
+  naming this decision and warning against restoring the old pairing on that rationale's strength.
+- **Round-trip coverage now exists where none did.** `RTACGridToLocalOffset` turned out to have
+  zero callers and zero test coverage anywhere in the repo — discovered during enactment, not
+  known when this entry was drafted, and the reason the old pairing could ship unchallenged. Test
+  Case 8 now round-trips all 18 tiles through both directions. All 18 are necessary: on the
+  diagonal (0,0), (1,1) and (2,2), Row and Column are interchangeable, so those three round-trip
+  correctly even if the reversal had been applied to only one direction. The 15 off-diagonal tiles
+  are what actually carry the evidence (Failure Mode 5).
+- **One prediction above did not hold, recorded rather than quietly superseded.** This entry's
+  Cost paragraph states "the assertion count is expected to stay 25." It is 43. The prediction was
+  correct for the relabel it described — that part added no assertions — and was overtaken by the
+  decision, made during enactment, to fold Case 8's 18 round-trip assertions into the same change
+  rather than defer them. The deviation is additive and deliberate, not a miscount.
+- **Result:** `RTAC.Presentation.GridConversion.ScreenToGridPosition` 43/43. The other five tests
+  are unchanged at 13/13, 51/51, 74/74, 24/24 and 6/6, with the same four deliberate `MultiEntity`
+  warnings and zero `LogRTAC` errors. Build-verified against `UnrealEditor-RTAC.dll` of
+  2026-09-25 13:52:49, postdating all three edited sources (latest 13:49:58); module loaded
+  13:53:47, tests ran 13:54:23.
 
 ---
 
@@ -1768,3 +1799,6 @@ Part B's move-input glue. No Decision numbers change; #1–#15 status unchanged 
 Column → local Y), `OPEN` at creation, enactment to follow. Decision #15 amended by addendum of
 the same date: its "compose without a hidden flip" claim was false as written; its direction table
 is unchanged and remains correct. No other Decision numbers or statuses change.*
+
+*Addendum, September 25, 2026 — Decision #16 moved OPEN → CLOSED, enacted in `3d81b75`
+(43/43, six-test regression green). #1–#15 statuses unchanged.*
