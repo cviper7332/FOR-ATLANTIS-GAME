@@ -1420,6 +1420,154 @@ Decision #5, never world or screen space. Nothing in the simulation defines it a
 - Visual confirmation that a built camera actually satisfies this table — that's a Part B
   verification step this entry requires but does not itself perform.
 
+**Addendum, September 25, 2026 — the "without a hidden flip" claim above was false as written.**
+The "Dependency this entry creates but does not itself satisfy" paragraph states that a camera
+satisfying this table would be "matching `RTACGridToLocalOffset`'s existing Column→local-X,
+Row→local-Y mapping (Rule 5 Addendum #3) so the two boundaries (grid↔local, local↔screen) compose
+without a hidden flip between them." That parenthetical is wrong, and it is wrong in exactly the
+way the paragraph containing it warns about.
+
+**What is wrong, precisely.** Under that pairing, the two requirements this entry sets — increasing
+Row reading higher on screen, increasing Column reading further screen-right — are mutually
+exclusive for every downward-looking camera, at every yaw, and under every board rotation. It is a
+handedness obstruction, not a value that needed picking: a camera that puts Column+ on the right
+necessarily puts Row+ toward the screen-bottom, and a camera that lifts Row+ toward the screen-top
+necessarily puts Column+ on the left. The derivation, the sanity anchor confirming UE's view basis,
+and a two-camera worked example live in Decision #16 rather than being restated here (Failure
+Mode 7).
+
+**What is unaffected.** This entry's table is correct and unchanged — Up is Row +1, Down Row −1,
+Left Column −1, Right Column +1 — and the BN3 screen-layout reasoning that fixes those signs
+stands. The constraint direction stated above stands too: the camera is constrained by this
+decision, not the reverse. What failed was only the claim about which local-axis pairing that table
+already composed with.
+
+**What fixes it.** Decision #16, same date, reverses the pairing to Row → local X, Column → local
+Y, which makes the two requirements simultaneously satisfiable instead of contradictory. This
+entry's on-screen constraint becomes achievable once #16 is enacted. Until then it is achievable by
+no camera at all — meaning the Part B camera work this entry defers could not have succeeded as
+specified, however carefully it was done.
+
+**Why this is an addendum and not an edit** (Rule 4): the original text stays because the wrong
+claim is instructive. It was a mechanism claim about composition — checkable by derivation, one
+page of algebra away — asserted as a premise rather than derived, inside an entry that elsewhere
+correctly insists on visual verification before hit-testing is trusted. That is Failure Mode 6's
+"mechanism claims are facts in source, not judgment calls" landing in an entry that was otherwise
+careful about this exact hazard.
+
+---
+
+
+## Decision #16 — Grid↔Local Axis Mapping: Row → Local X, Column → Local Y
+
+**Date:** September 25, 2026
+**Phase:** RTAC Phase 2 (Presentation & First Playable Board)
+**Author:** Omar
+**Status:** OPEN
+
+**Decision:** `RTACGridToLocalOffset` maps **Row to the board's local X axis and Column to local
+Y**, reversing the pairing shipped in `6f60bfb`. `RTACWorldPositionToGridPosition` inverts the
+same way — Row recovered from `LocalPoint.X`, Column from `LocalPoint.Y`. This is a relabel, not a
+negation: no sign flips anywhere, so the half-open corner semantics `RTACGridConversion.h`
+documents (a tile's offset is its CORNER, not its center; floor never round) survive unchanged.
+
+**Why: the shipped pairing cannot satisfy Decision #15 on screen, under any camera.** This is an
+orientation/handedness obstruction, not a tuning problem. No pitch, no yaw, no board placement,
+and no camera distance resolves it.
+
+For any camera with Roll = 0, UE's view basis is:
+
+- screen-right `R = (-sin Yaw, cos Yaw, 0)` — always horizontal
+- screen-up `U = (-sin Pitch·cos Yaw, -sin Pitch·sin Yaw, cos Pitch)`
+
+Sanity anchor, checkable in one PIE session: Pitch −90°, Yaw 0° (straight down) gives
+`R = (0,1,0)` and `U = (1,0,0)` — world +Y reads screen-right, world +X reads screen-up. That is
+UE's familiar top-down orientation, and it is what confirms the two formulas above are the
+engine's own rather than a plausible-looking guess (Failure Mode 8).
+
+Let `u` be the world direction the board's local +X points, and `v` the direction local +Y points.
+For any rigid, non-mirrored board transform, `v = rot90(u)`. Decision #15 requires both:
+
+- **(A)** Column+ reads screen-right → `u · R > 0`
+- **(B)** Row+ reads screen-up → `v · U > 0`, which for any downward pitch reduces to `v · F > 0`,
+  where `F` is the camera's horizontal forward direction
+
+Because `R = rot90(F)` and `a · rot90(b) = −rot90(a) · b`, condition (A) expands to
+`−rot90(u) · F > 0`, i.e. **`v · F < 0`** — the exact negation of (B). The two requirements
+contradict each other identically, for every Pitch < 0, every Yaw, and every board rotation.
+
+Concretely, under the shipped Column→X / Row→Y pairing:
+
+| Camera | Column+ (local +X) | Row+ (local +Y) | Decision #15 |
+|---|---|---|---|
+| Yaw −90°, Pitch −40° (viewing from the +Y side) | screen-right ✓ | screen-**down** ✗ | fails |
+| Yaw +90°, Pitch −40° (viewing from the −Y side) | screen-**left** ✗ | screen-up ✓ | fails |
+
+Rotating the board 180° swaps which of the two fails. It never fixes both.
+
+Under this entry's mapping the contradiction disappears rather than relocating: with Row→X and
+Column→Y, condition (A) becomes `v · R > 0` → `u · F > 0`, which *is* condition (B). One camera
+satisfies both.
+
+**Rejected alternatives** — the escape routes are exactly four, and three are worse:
+
+- **Mirror the board's scale** (e.g. Scale.Y = −1). Leaves the conversion code untouched and
+  inverts every mesh, normal, and material placed on the board. A silent footgun for whoever puts
+  art on it later.
+- **Roll the camera 180°.** Satisfies the algebra by turning the world upside down.
+- **Pitch the camera upward** (Pitch > 0, viewing the board from beneath). The one case where the
+  shipped pairing genuinely works, and not a view this game can use.
+- **Reinterpret Decision #15's row numbering** so row 0 sits at screen-top. Ruled out by #15's own
+  text, which fixes row 0 at the screen-bottom from BN3's actual screen layout and states that
+  "the camera's rotation is therefore constrained by this decision, not the reverse."
+
+**Why the fix belongs in the conversion function specifically:** Rule 10 puts the grid↔world
+domain crossing at "exactly one boundary, in one named function, in the presentation layer." The
+flip has to live somewhere, and the three alternatives above put it in a mesh transform, a camera
+rotation, or a redefinition of the simulation's own row indices respectively. Only this one keeps
+it where the rule already says the domain crossing happens.
+
+**What this does not change, stated so the entry is not over-read:**
+
+- **No signature changes.** `RTACGridToLocalOffset`, `RTACWorldPositionToGridPosition`, and
+  `RTACScreenToGridPosition` keep their parameter lists exactly. Bodies and doc comments only.
+- **Nothing under `Simulation/` is touched.** `FRTACGridPosition`'s Row and Column keep meaning
+  exactly what they meant; no simulation rule reads a local axis. Phase 2 Part B's
+  falsifiable-test criterion — `git diff --stat` over `Simulation/` coming back empty — is
+  therefore unaffected. What broke here was a composition claim entirely inside the presentation
+  layer, which that criterion was never scoped to catch.
+- **Decision #15's table is unaffected and remains correct.** Up is still Row +1. What was wrong
+  was #15's parenthetical claim about which local-axis pairing that table composes with — see
+  #15's own addendum of this date.
+- **Decision #5's rows×columns convention is unaffected.** This entry assigns local *axes*, not
+  index order.
+
+**Cost, stated rather than glossed:** `RTAC.Presentation.GridConversion.ScreenToGridPosition`
+(25/25, `64b36b8`) has its expectations relabeled — each hand-picked local point's expected Row
+and Column swap. The test's structure, its deliberately non-identity board transform, and its
+floor-vs-round boundary cases all survive; this is a relabel of the oracle's expectations, not a
+redesign of the oracle, and the assertion count is expected to stay 25. `RTACGridConversion.h`'s
+stated rationale for the old pairing — that Column→X "match[es] Decision #5's wider-than-deep
+board (6 columns x 3 rows default)" — retires with it: under this mapping the board extends 6
+tiles along local Y and 3 along local X, and "wider than deep" was always a claim about how the
+board reads on screen, which is precisely what this entry is what secures.
+
+**How this was found, recorded because the method is the point:** derived from Decision #15's own
+on-screen constraint while computing concrete Pitch/Yaw/placement values for Phase 2 Part B's
+camera — not observed as a visual bug, because no camera exists yet to observe it with. The
+shipped 25/25 test cannot catch it by construction: it supplies hand-picked local points and never
+involves a camera, so the local↔screen half of the composition falls outside its scope. Caught by
+the implementer (CC/Opus) during Part B camera design, September 25, 2026, and confirmed by
+re-derivation rather than by agreement (Rule 15, Failure Mode 8).
+
+**Explicitly deferred:**
+
+- The camera actor's own Pitch/Yaw/placement values — Part B implementation work, as Decision #15
+  already deferred them.
+- Visual confirmation in PIE that the corrected mapping plus a built camera actually satisfy
+  Decision #15's table. This entry makes that confirmation *possible*; it does not perform it, and
+  Decision #15's standing requirement that someone perform it is unchanged.
+
 ---
 
 
@@ -1615,3 +1763,8 @@ outstanding, per #15's own text.*
 
 *Addendum, September 25, 2026 — new Open Question logged: Match-State Ownership, blocking Phase 2
 Part B's move-input glue. No Decision numbers change; #1–#15 status unchanged from above.*
+
+*Addendum, September 25, 2026 — Decision #16 logged (grid↔local axis mapping: Row → local X,
+Column → local Y), `OPEN` at creation, enactment to follow. Decision #15 amended by addendum of
+the same date: its "compose without a hidden flip" claim was false as written; its direction table
+is unchanged and remains correct. No other Decision numbers or statuses change.*
