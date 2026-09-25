@@ -250,6 +250,55 @@ still holds.
 
 ---
 
+## Camera and Projection (UE5.8)
+
+### `UCameraComponent::FieldOfView` is horizontal *as authored*, not necessarily as applied
+
+The header documents `FieldOfView` as "the horizontal field of view (in degrees) in perspective
+mode" (`Runtime/Engine/Classes/Camera/CameraComponent.h:37`, field at `:44`). That is true of the
+value you set. It is **not** necessarily the angle the projection matrix uses on the horizontal
+axis, because an aspect-ratio axis constraint can reinterpret it.
+
+**This project is affected by default.** `Engine/Config/BaseEngine.ini:2900` sets
+`AspectRatioAxisConstraint=AspectRatio_MaintainYFOV`, and `ProjectAtlantis/Config/` does not
+override it (grepped, zero hits). `MaintainYFOV` means the **vertical** FOV is what stays fixed.
+
+The conversion, `Runtime/Engine/Private/Camera/CameraStackTypes.cpp:331-333`:
+
+    const float HalfXFOV = FMath::DegreesToRadians(FMath::Max(0.001f, ViewInfo.FOV) / 2.f);
+    const float HalfYFOV = FMath::Atan(FMath::Tan(HalfXFOV) / ViewInfo.AspectRatio);
+    MatrixHalfFOV = HalfYFOV;
+
+with the axis multipliers chosen at `:287-299` — under `MaintainYFOV`,
+`XAxisMultiplier = SizeY/SizeX` and `YAxisMultiplier = 1.0`. Net effect:
+
+    theta_v = atan( tan(FOV/2) / Camera.AspectRatio )   <- fixed, regardless of window shape
+    theta_h = atan( tan(theta_v) * ViewportAspect )     <- varies with window shape
+
+`UCameraComponent::AspectRatio` defaults to `1.777778` (16:9) and `FieldOfView` to `90.0f` —
+`Runtime/Engine/Private/Camera/CameraComponent.cpp:81` and `:78`.
+
+**Why it matters.** At a 16:9 viewport with the default `AspectRatio`, a 60-degree `FieldOfView`
+gives theta_v = 18 deg and theta_h = 30 deg — exactly as if the value were used as a horizontal
+FOV. The two readings agree *at the design aspect ratio only*, and diverge asymmetrically:
+
+| Viewport | theta_h (FOV 60, AspectRatio 16:9) | Effect |
+|---|---|---|
+| 21:9 ultrawide | 37.2 deg | wider view; content shrinks, nothing crops |
+| 16:9 design target | 30.0 deg | as authored |
+| 4:3 | 23.4 deg | **narrower view; horizontal content crops** |
+
+A camera that frames on a horizontal extent therefore cannot assume a fixed horizontal FOV. It
+must name the narrowest aspect ratio it guarantees and derive its distance from that. This is why
+`ARTACCombatCamera` carries a `MinAspectRatio` knob rather than a bare FOV: the assumption is made
+explicit and tunable instead of silently baked into a distance constant.
+
+**Verified September 25, 2026:** `CameraComponent.h:37,44`; `CameraComponent.cpp:78,81`;
+`CameraStackTypes.cpp:287,299,331-333`; `BaseEngine.ini:2900`; plus a grep of
+`ProjectAtlantis/Config/` for `AspectRatioAxisConstraint` returning zero hits.
+
+---
+
 *Created August 29, 2026, per Rule 13 (system date checked live before writing). Structure is
 meant to extend indefinitely — each future verified API area gets its own `##` section following
 this same pattern: what was checked, the exact citation, and any judgment calls made along the way
