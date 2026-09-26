@@ -463,11 +463,46 @@ reasoning lives in the decision addendum and is not restated here.
 
 **Status:** `OPEN`
 
-> **Progress note, September 25, 2026.** Part A item 1 is done — see the checkbox below. Item 2
-> is implemented but deliberately not checked — see its own note. Part B (camera actor, PIE
-> playability) has not been started. Decision #15 (input direction convention) is logged and
-> `OPEN`, and a new Open Question, Match-State Ownership, was logged the same date
-> (`combat_decisions.md`) — both block Part B's move-input glue and neither is resolved yet.
+> **Progress note, September 25, 2026 (supersedes the earlier note of the same date).**
+>
+> **Part A item 1: done and checked. Item 2: still open** — the reason narrowed sharply this
+> session but did not disappear; see the checkbox's own note.
+>
+> **Part B has started, out of order and deliberately.** The camera was built ahead of the
+> move-input glue because Decision #15 made it a prerequisite for trusting hit-testing at all,
+> and because neither of Part B's actual blockers touches it.
+>
+> **PIE-VERIFIED this session** — live placement in `Lvl_ThirdPerson`, screen positions read back
+> numerically rather than eyeballed:
+> - `ARTACCombatCamera` exists, self-frames from the board's dimensions, and satisfies Decision
+>   #15's on-screen table. Corner markers at tiles (0,0), (0,5), (2,0), (2,5) resolved to screen
+>   pixels (240,303), (711,303), (295,200), (656,200) — Column+ goes right, Row+ climbs.
+> - Repeated against a board translated to (500,-300,120) and rotated 90 degrees:
+>   **pixel-identical** results, proving the camera's framing composes correctly onto a
+>   non-identity board transform. That path had never been exercised, because `ARTACBoard` could
+>   not be moved until `5fac032`.
+> - Decision #16's axis reversal is therefore confirmed **on screen**, not only in geometry tests.
+>
+> **STILL THEORETICAL — never executed at runtime:** `RTACScreenToGridPosition`'s deprojection
+> path. This is the entirety of what keeps Part A item 2 open.
+>
+> **Also landed:** `ARTACBoard::TileSize` (default 200) and a `SceneRoot` on `ARTACBoard`, which
+> previously had no RootComponent and so was pinned to the world origin with a permanently
+> identity transform (`5fac032`).
+>
+> **Open, each with its shape stated so none reads as merely "todo":**
+> - **Match-State Ownership** (`combat_decisions.md`) — blocks the move-input glue, which needs a
+>   live `FRTACMatchState` to resolve against.
+> - **Camera-swap falsifiable test** — mechanism designed; now *unblocked* (a camera exists to
+>   swap) but not yet run.
+> - **Move-input glue** — designed, blocked on Match-State Ownership.
+> - **`RTACScreenToGridPosition` runtime hook** — the only thing between item 2 and closure.
+>   Explicitly NOT blocked on Match-State Ownership: the function takes a caller-supplied
+>   `FRTACGrid`, so a throwaway `Grid.Init(Rows, Columns)` suffices for hit-testing.
+> - **Boundary-rounding latent risk** (`docs/reference.md`) — click-derived input safe,
+>   computed-derived input not. Unconfirmed, low priority.
+> - **Transient-world crash** (`docs/reference.md`) — undiagnosed ~1-in-5 editor kill during
+>   automation-test world creation. Loud; cannot produce a false green. Restart and re-run.
 
 ## Goal
 
@@ -500,12 +535,23 @@ phase exists to validate has already failed.
       — `RTACScreenToGridPosition`/`RTACWorldPositionToGridPosition` (`64b36b8`) are real
       deprojection-based code, not an axis swap, and the post-intersection geometry half is
       test-verified (`RTAC.Presentation.GridConversion.ScreenToGridPosition`, 43/43 — 25/25
-      until Decision #16's enactment in `3d81b75` added Case 8's 18-tile round-trip). Left
-      unchecked deliberately: the test's own header states the actual deprojection-through-camera
-      path is untested "pending Decision #15," and Decision #15 confirms zero camera actors exist
-      anywhere in the plugin yet. This checkbox's wording — "related to screen space by the
-      isometric projection" — presupposes a projection that doesn't exist yet to relate to; it
-      closes once Part B's camera is built and the deprojection path is exercised against it.
+      until Decision #16's enactment in `3d81b75` added Case 8's 18-tile round-trip).
+
+      > **Still unchecked, September 25, 2026 — and the reason has changed.** The earlier reason
+      > was that no camera existed to relate screen space to. That is no longer true:
+      > `ARTACCombatCamera` is built and was PIE-verified this session under both identity and
+      > non-identity board transforms (progress note above).
+      >
+      > **What remains is one specific gap: `RTACScreenToGridPosition` has never run.** The PIE
+      > work verified the FORWARD direction — grid to local to world to screen. It did not touch
+      > the INVERSE direction through the deprojection code, which is what this checkbox is about.
+      > The test cannot cover it either: the real `DeprojectScreenPositionToWorld` needs a live
+      > LocalPlayer with an attached viewport, which exists only inside PIE.
+      >
+      > So this item's own closing condition — "the deprojection path is exercised against [the
+      > camera]" — is unmet even though its other condition is now met. It closes when a runtime
+      > hook resolves a real PIE click to a tile confirmed against a known screen position. That
+      > hook is NOT blocked on Match-State Ownership; see the progress note.
 
 **Part B — requires UE5 open**
 - [ ] **Falsifiable test:** changing the camera (e.g. swapping isometric angle) requires zero

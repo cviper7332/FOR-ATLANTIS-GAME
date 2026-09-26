@@ -8,18 +8,20 @@ agent-workflow dependency: CC/CC-Opus's live editor introspection (MCP) is a 5.8
 feature, confirmed absent from 5.6 and 5.7 on this machine. See `docs/combat_decisions.md`
 Decision #7. RTAC's own *consumer* portability floor (what a project dropping RTAC in requires)
 is separate and still undetermined — see `docs/PHASES.md` Phase 8.
-**Phase:** RTAC Phase 2 (Presentation & First Playable Board), `OPEN` — Part A in progress, Part B
-not started. Phase 1 and Phase 0 are `CLOSED`. Combat code exists and compiles — see Current
-state below.
+**Phase:** RTAC Phase 2 (Presentation & First Playable Board), `OPEN` — Part A has one of its two
+items done, and Part B has started out of order: the camera actor is built and PIE-verified, the
+move-input glue is not. Phase 1 and Phase 0 are `CLOSED`. Combat code exists and compiles — see
+Current state below.
 
 **Current state:** The stock UE5 Third Person template plus its three official variants
 (Combat / Platforming / SideScrolling) remains unmodified. Alongside it, the RTAC plugin holds
-3,107 lines of real, compiling simulation code across 20 source files from Phase 1 (grid and tile
-types, the entity struct, per-tile ownership, the per-match state container, entity spawn, and
-the movement-legality check and its resolution) plus Phase 2 Part A's first presentation-layer
-code: `RTACBoard`, the grid↔world conversion function, and screen↔grid hit-testing geometry —
-see `docs/PHASES.md` Phase 2 for exactly what's done and what's outstanding within Part A, and
-for Part B's open blockers (Decision #15, Match-State Ownership).
+3,805 lines of real, compiling code across 27 source files (counted live September 25, 2026):
+Phase 1's simulation layer (grid and tile types, the entity struct, per-tile ownership, the
+per-match state container, entity spawn, and the movement-legality check and its resolution) plus
+Phase 2's presentation layer — `RTACBoard` (now carrying `TileSize` and a `SceneRoot`), the
+grid↔world conversion function, screen↔grid hit-testing geometry, and `RTACCombatCamera`, the
+isometric 2.5D camera, PIE-verified to satisfy Decision #15's on-screen direction table. See
+`docs/PHASES.md` Phase 2 for what is verified, what is still theoretical, and what remains open.
 
 **The type-by-type inventory of what Phase 1 delivered is NOT restated here. It is authoritative
 in `docs/PHASE1_COMPLETED.md` → "What Was Built — Simulation Surface."** It used to live in this
@@ -30,9 +32,10 @@ file is not. Do not reintroduce the list here (Failure Mode 7).
 
 **All six** UE Automation Tests below were confirmed green together on September 25, 2026, in a
 single run, against a DLL verified on disk to postdate every source edit (`UnrealEditor-RTAC.dll`
-2026-09-25 13:52:49 vs. last source edit 13:49:58; module loaded 13:53:47, tests run 13:54:23).
-This supersedes the previous split evidence chain here, in which five were confirmed together on
-September 2, 2026 and the sixth separately on September 21 against a different DLL.
+2026-09-25 18:09:33 vs. last source edit 18:06:35; module loaded 18:10:31, tests run 18:11:00).
+That was the last of three rebuilds that day; the earlier runs at 13:54 and 17:37 were also green
+and are superseded by it. This in turn supersedes the older split evidence chain, in which five
+were confirmed together on September 2, 2026 and the sixth separately on September 21.
 
 `RTAC.Presentation.GridConversion.ScreenToGridPosition` reads **43/43** below, not the 25/25 it
 carried before September 25, 2026: Decision #16's enactment (`3d81b75`) added Case 8, an 18-tile
@@ -64,9 +67,16 @@ Success-with-warnings amber rather than green. The full diagnosis — log eviden
 source lines that drive the colour — lives in `RTACMovementTest.cpp`'s own header comment, next to
 the warnings that cause it, and is deliberately not restated here (Failure Mode 7).
 
-All design work lives in `docs/combat_decisions.md` — Decisions #1–#15, plus a Match-State
+All design work lives in `docs/combat_decisions.md` — Decisions #1–#16, plus a Match-State
 Ownership Open Question (logged September 25, 2026, blocks Phase 2 Part B) and a speculative one
 (mid-battle entity-defection to a third party, not current-phase scope).
+
+**Known issues worth recognising before re-investigating them** live in `docs/reference.md`: an
+undiagnosed ~1-in-5 editor crash during automation-test transient-world creation (loud — it
+cannot produce a false green; restart and re-run), a latent tile-boundary rounding risk that is
+safe for click-derived input and unsafe for computed input, and a note that the conversion test's
+non-identity transform coverage is real but gentle. Each records what was already ruled out, so a
+future session does not re-derive five falsified hypotheses.
 
 **Phase 1 is `CLOSED`; Phase 2 is `OPEN` and in progress.** The Phase 1 Exit Review ran
 September 3, 2026; its full findings live in `docs/PHASE1_CHECK.md` and are not restated here. In
@@ -577,11 +587,12 @@ record in `docs/PHASE1_COMPLETED.md`. History only — see the paragraph below f
 phase.*
 
 *Phase 2 (Presentation & First Playable Board), OPEN as of this update. Part A item 1 (grid↔world
-conversion) done, `RTACGridToLocalOffset` in `6f60bfb`; Part A item 2 (screen↔grid hit-testing)
-implemented and geometry-verified but not checked, pending a real camera per Decision #15 —
-`RTACScreenToGridPosition`/`RTACWorldPositionToGridPosition` in `64b36b8`, test
-`RTAC.Presentation.GridConversion.ScreenToGridPosition` 43/43 (25/25 until Decision #16's
-enactment in `3d81b75` reversed the grid↔local axis mapping and added an 18-tile round-trip).
-Part B not started. Decision #15
-and the Match-State Ownership Open Question, both logged in `combat_decisions.md`, are Part B's
-open blockers. Full detail in `docs/PHASES.md` → Phase 2.*
+conversion) done, `RTACGridToLocalOffset` in `6f60bfb`. Part A item 2 (screen↔grid hit-testing)
+implemented, geometry-verified at 43/43, and still unchecked — but for a narrower reason than
+before: the camera now exists and is PIE-verified, and what remains is that
+`RTACScreenToGridPosition`'s deprojection path has never run at runtime. Part B started out of
+order: `ARTACCombatCamera` (`794dbb9`) satisfies Decision #15's on-screen table under both
+identity and rotated board transforms; `ARTACBoard` gained `TileSize` and, in `5fac032`, a
+`SceneRoot` without which it could never be placed. Still open: Match-State Ownership, the
+camera-swap falsifiable test, the move-input glue, and the runtime hook that closes item 2.
+Full detail in `docs/PHASES.md` → Phase 2.*
