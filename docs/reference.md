@@ -501,6 +501,101 @@ unchanged at 479, `git status --untracked-files=all` empty.
 
 ---
 
+## Verifying a Live Engine-Source Claim Requires More Than a Clean Log Line
+
+A single "it worked" log line only becomes evidence when paired with checks that could have failed
+and didn't. The procedure below was established September 26, 2026, while verifying a live claim
+about `UWorldSubsystem` lifecycle and lookup behavior for the Match-State Ownership question
+(`combat_decisions.md` → Open Questions → "Match-State Ownership"). It is recorded here as a
+reusable pattern, not tied to the throwaway probe it was first run against; that question's own
+findings belong in `combat_decisions.md` and are not restated here (Failure Mode 7).
+
+**1. DLL timestamp, not just build success.** A successful build does not prove the running editor
+is executing the change: UBT can skip relinking (`CLAUDE.md` → How to Build → build verification),
+and an editor that was not restarted keeps the DLL it already loaded. Confirm the DLL's on-disk
+timestamp postdates every changed source file, AND confirm the running editor's own module-load log
+line postdates the DLL write.
+
+- *How it was run:* `ls -l --time-style=full-iso` on
+  `Plugins/RTAC/Binaries/Win64/UnrealEditor-RTAC.dll` and on each changed source file. The
+  module-load line is `LogRTAC: RTAC module loaded.` (`RTACModule.cpp:9`) in
+  `Saved/Logs/ProjectAtlantis.log`. **Log timestamps are UTC, file times are local** —
+  `[2026.09.26-16.35.41]` is 12:35:41 EDT — so convert before comparing.
+- *Judgment call — newer is not the same as containing the change.* A timestamp proves the file was
+  rewritten, not what went into it. `grep -c -a "<string unique to the change>"` on the DLL checks
+  content directly: nonzero after adding code (used this way September 26, 2026), zero after
+  removing it. For a removal there is no source timestamp left to compare against, so the content
+  check becomes the primary evidence.
+
+**2. Single-editor-instance check.** Confirm exactly one editor process is running, and that no
+secondary log file has been written during the current session, before trusting any MCP read —
+MCP can silently bind to the wrong editor instance without erroring (`CLAUDE.md` → MCP, the
+September 2, 2026 incident).
+
+- *How it was run:* `tasklist //FI "IMAGENAME eq UnrealEditor.exe"` from Git Bash, and
+  `ls -l --time-style=full-iso Saved/Logs/ProjectAtlantis_2.log`.
+- *Judgment call — check the secondary log's timestamp, not its existence.* A `_2.log` outlives the
+  session that wrote it: one last written September 2, 2026 — the date of the two-editor incident
+  above — was still present on September 26. Its presence alone says nothing about a second editor
+  running now; a modification time inside the current session does.
+
+**3. Cross-check MCP reads against the disk log directly.** Read the claim through MCP, then
+independently grep the same claim in the raw log file on disk. Agreement between the two rules out
+an MCP-specific reporting problem.
+
+- *How it was run:* `EditorToolset.LogsToolset` → `GetLogEntries(category="LogRTAC",
+  pattern="<unique string>", maxEntries=50)`, then
+  `grep -n "<unique string>" Saved/Logs/ProjectAtlantis.log`.
+- *Judgment call — take a baseline first.* Count the same string in the disk log *before* the run.
+  A baseline of zero is what makes the post-run line attributable to the run rather than to an
+  earlier session's leftover output.
+
+**4. Positive AND negative controls, together.** A negative control (the thing you expect to be
+ABSENT actually resolves as absent) only means something if paired with a positive control proving
+the lookup mechanism itself still works (something you expect to be PRESENT actually resolves). An
+absent result with no positive control is ambiguous between "correctly absent" and "the tool
+silently failed."
+
+- *How it was run:* `editor_toolset.toolsets.object.ObjectTools` → `get_class` on an object path —
+  `/Game/ThirdPerson/Lvl_ThirdPerson.Lvl_ThirdPerson:<Name>_0` for the editor world,
+  `/Game/ThirdPerson/UEDPIE_0_Lvl_ThirdPerson.Lvl_ThirdPerson:<Name>_0` for the PIE world. An absent
+  object returns the error `… is not valid Object for property 'instance'`. Positive control: an
+  engine world subsystem known to be present in the same world, `…:WorldMetricsSubsystem_0`.
+- *Side effect to expect:* each rejected lookup also writes
+  `LogScript: Warning: <path> is not valid Object for property 'instance'` to the editor log. Those
+  lines are the negative control's own footprint, not failures — match their timestamps to the
+  lookups before reading anything into them.
+
+**5. Distinguish "absent" from "never registered."** Where possible, confirm via a separate
+registration/class-list lookup that the thing being checked for absence was actually loaded and
+reflected by the engine, and its absence from a specific context is due to the mechanism under test
+(e.g. `DoesSupportWorldType`), not a load/registration failure.
+
+- *How it was run:* `ObjectTools` → `search_subclasses(base_class=/Script/Engine.WorldSubsystem,
+  class_name="<Name>")`, which returns the class's `/Script/<Module>.<Class>` path when the class is
+  registered.
+
+**6. Watch for truncated or artificially limited command output.** A search or log read that
+silently caps its own results (e.g. piping through `head`, a tool's default result limit) can read
+as a complete, clean result when it is actually partial. During this same verification work, the
+claim "no `final` world-subsystem precedent exists in 5.8" was reported and was wrong — the
+underlying grep had been piped through `head -5` and returned exactly five hits, which was misread
+as an exhaustive negative result rather than a truncated one. At least two ship with the engine,
+both under `Engine/Plugins/WorldMetrics/Source/`: `UWorldMetricsSubsystem`
+(`WorldMetricsCore/Public/WorldMetricsSubsystem.h:28-29`) and `UCsvMetricsSubsystem`
+(`CsvMetrics/Public/CsvMetricsSubsystem.h:16-17`). Confirm a search or log read is unbounded, or
+explicitly account for the possibility that a negative result is an artifact of a limit, before
+treating an absence as confirmed.
+
+- *The tell:* a result count exactly equal to the cap. `GetLogEntries` carries one too —
+  `maxEntries`, default 1000 per `CLAUDE.md` → MCP.
+- *Second occurrence, September 26, 2026 — a listing, not a search.* A time-sorted listing cut to
+  its newest entries (`ls -l *.log | sort -k6,7 | tail -5`, run to check point 2) hid an older
+  `ProjectAtlantis_2.log`, which was then reported as absent. A newest-first cutoff hides exactly
+  the stale files point 2 has to account for.
+
+---
+
 *Created August 29, 2026, per Rule 13 (system date checked live before writing). Structure is
 meant to extend indefinitely — each future verified API area gets its own `##` section following
 this same pattern: what was checked, the exact citation, and any judgment calls made along the way
