@@ -7,14 +7,25 @@
 #include "Presentation/RTACGridConversion.h"
 #include "Simulation/RTACGrid.h"
 #include "Simulation/RTACGridPosition.h"
+#include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "SceneView.h"
 
 /**
- * Runtime probes for RTACScreenToGridPosition -- Phase 2 Part A item 2's closing instrument.
+ * Presentation-layer runtime probes -- Phase 2 Part A item 2's closing instrument, plus the
+ * view-target probe that keeps its results trustworthy.
+ *
+ * FILE SCOPE, because the filename under-describes it: this holds RTAC's presentation-side
+ * diagnostic console commands generally, not only grid-conversion ones. RTAC.LogActiveCamera below
+ * is about the active camera, not the conversion. The name is kept deliberately rather than
+ * renamed -- a rename means a new file plus a delete and more build churn for no functional gain.
  *
  * WHY THIS FILE EXISTS. RTACScreenToGridPosition's deprojection half had never executed, in any
  * build, ever. RTAC.Presentation.GridConversion.ScreenToGridPosition covers the geometry half
@@ -95,12 +106,18 @@ namespace
 	};
 
 	/**
-	 * Resolves a probe's context, or logs exactly why it could not and returns false.
+	 * Resolves the two things EVERY probe needs: a live game world and a PlayerController.
+	 *
+	 * Split out of RTACResolveProbeContext deliberately (Rule 8). RTAC.LogActiveCamera needs no
+	 * board, and gating it on board presence would make the view-target diagnostic unusable
+	 * exactly when the scene is misconfigured -- which is when it matters most. Keeping these two
+	 * refusal messages in one place is Failure Mode 7's "one quantity, one location."
 	 *
 	 * Every refusal names the calling command, so two commands failing for different reasons in
 	 * one log remain distinguishable.
 	 */
-	bool RTACResolveProbeContext(UWorld* World, const TCHAR* CommandName, FRTACProbeContext& OutContext)
+	bool RTACResolveWorldAndController(UWorld* World, const TCHAR* CommandName,
+		APlayerController*& OutPlayerController)
 	{
 		if (World == nullptr || !World->IsGameWorld())
 		{
@@ -112,10 +129,24 @@ namespace
 			return false;
 		}
 
-		OutContext.PlayerController = World->GetFirstPlayerController();
-		if (OutContext.PlayerController == nullptr)
+		OutPlayerController = World->GetFirstPlayerController();
+		if (OutPlayerController == nullptr)
 		{
 			UE_LOG(LogRTAC, Warning, TEXT("%s: no PlayerController in the game world."), CommandName);
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Resolves a grid-conversion probe's context: world and controller, plus the board and the
+	 * throwaway grid that RTACScreenToGridPosition needs.
+	 */
+	bool RTACResolveProbeContext(UWorld* World, const TCHAR* CommandName, FRTACProbeContext& OutContext)
+	{
+		if (!RTACResolveWorldAndController(World, CommandName, OutContext.PlayerController))
+		{
 			return false;
 		}
 
@@ -369,6 +400,152 @@ namespace
 		UE_LOG(LogRTAC, Log, TEXT("%s complete: %d/%d tiles round-tripped"),
 			CommandName, NumRoundTripped, NumTiles);
 	}
+
+	/**
+	 * RTAC.LogActiveCamera -- report the pose deprojection actually uses, and name the actor it
+	 * comes from.
+	 *
+	 * WHY THIS EXISTS. RTAC.ScreenToGridSweep cannot detect a wrong view target: both of its legs
+	 * go through the same PlayerController, so a consistent-but-wrong camera still round-trips
+	 * 18/18 and looks perfect. Editor-side tools mislead here too, measured live on 2026-09-26:
+	 * CaptureViewport applies the EDITOR viewport's FOV (90) to whatever transform it is handed,
+	 * and GetCameraTransform returns the editor camera, not the PIE view. This reads the camera
+	 * manager directly instead of inferring anything.
+	 *
+	 * THE ACCESSORS ARE THE LOAD-BEARING PART. GetCameraLocation/GetCameraRotation
+	 * (PlayerCameraManager.h:705/701) return the final evaluated POV, which is what feeds
+	 * GetProjectionData and therefore DeprojectScreenPositionToWorld. The raw Location/Rotation
+	 * fields are "buried to prevent use" at :928-931 precisely so callers use these. A
+	 * CameraComponent's authored FieldOfView is NOT that value; both are logged side by side so
+	 * authored-vs-applied confusion is self-evident rather than a trap.
+	 *
+	 * Rule 5: reads presentation and engine state only -- no simulation type is touched here, not
+	 * even a throwaway grid. Rule 10: every logged quantity names its domain (cm, deg, px).
+	 */
+	void RTACLogActiveCameraCommand(const TArray<FString>& /*Args*/, UWorld* World)
+	{
+		static const TCHAR* const CommandName = TEXT("RTAC.LogActiveCamera");
+
+		APlayerController* PlayerController = nullptr;
+		if (!RTACResolveWorldAndController(World, CommandName, PlayerController))
+		{
+			return;
+		}
+
+		UE_LOG(LogRTAC, Log, TEXT("=== %s ==="), CommandName);
+
+		// Named first and unconditionally: this is the single fact that makes "is PIE looking
+		// through ARTACCombatCamera or the third-person follow camera?" unambiguous, and it does
+		// not depend on the camera manager existing.
+		AActor* const ViewTarget = PlayerController->GetViewTarget();
+		if (ViewTarget != nullptr)
+		{
+			UE_LOG(LogRTAC, Log, TEXT("  view target: '%s' (%s)"),
+				*ViewTarget->GetName(), *ViewTarget->GetClass()->GetName());
+		}
+		else
+		{
+			UE_LOG(LogRTAC, Warning,
+				TEXT("  view target: NONE -- deprojection has no camera to go through."));
+		}
+
+		APlayerCameraManager* const CameraManager = PlayerController->PlayerCameraManager;
+		if (CameraManager == nullptr)
+		{
+			UE_LOG(LogRTAC, Warning, TEXT("  camera manager: NONE -- POV unavailable."));
+		}
+		else
+		{
+			const FVector PovLocation = CameraManager->GetCameraLocation();
+			const FRotator PovRotation = CameraManager->GetCameraRotation();
+			UE_LOG(LogRTAC, Log,
+				TEXT("  camera manager POV (what deprojection uses): loc cm (%.1f, %.1f, %.1f) "
+					 "rot deg (P %.1f, Y %.1f, R %.1f) FOV %.1f"),
+				PovLocation.X, PovLocation.Y, PovLocation.Z,
+				PovRotation.Pitch, PovRotation.Yaw, PovRotation.Roll,
+				CameraManager->GetFOVAngle());
+
+			// A mismatch here is how a blend, a camera-component offset, or a camera modifier
+			// announces itself. Without this line it is invisible and silently corrupts a pixel
+			// probe. Two UE_LOG calls rather than a ternary: UE_LOG's verbosity must be a
+			// compile-time literal, so a runtime choice of verbosity does not compile.
+			if (ViewTarget != nullptr)
+			{
+				const FVector ActorLocation = ViewTarget->GetActorLocation();
+				const FRotator ActorRotation = ViewTarget->GetActorRotation();
+				if (ActorLocation.Equals(PovLocation, 1.0) && ActorRotation.Equals(PovRotation, 0.5f))
+				{
+					UE_LOG(LogRTAC, Log,
+						TEXT("  view target actor transform: loc cm (%.1f, %.1f, %.1f) rot deg "
+							 "(P %.1f, Y %.1f, R %.1f) -- matches POV"),
+						ActorLocation.X, ActorLocation.Y, ActorLocation.Z,
+						ActorRotation.Pitch, ActorRotation.Yaw, ActorRotation.Roll);
+				}
+				else
+				{
+					UE_LOG(LogRTAC, Warning,
+						TEXT("  view target actor transform: loc cm (%.1f, %.1f, %.1f) rot deg "
+							 "(P %.1f, Y %.1f, R %.1f) -- DIFFERS from POV. The actor is not where "
+							 "the view is: blend, camera-component offset, or camera modifier."),
+						ActorLocation.X, ActorLocation.Y, ActorLocation.Z,
+						ActorRotation.Pitch, ActorRotation.Yaw, ActorRotation.Roll);
+				}
+			}
+
+			// SetViewTarget can blend. Mid-blend the POV above is an intermediate, so any pixel
+			// measured now is transient -- and there is otherwise no signal at all.
+			if (CameraManager->BlendTimeToGo > 0.0f
+				|| CameraManager->PendingViewTarget.Target != nullptr)
+			{
+				UE_LOG(LogRTAC, Warning,
+					TEXT("  blend: IN PROGRESS, %.3fs to go, pending target '%s' -- the POV above "
+						 "is an intermediate; any pixel measured now is transient."),
+					CameraManager->BlendTimeToGo,
+					CameraManager->PendingViewTarget.Target != nullptr
+						? *CameraManager->PendingViewTarget.Target->GetName()
+						: TEXT("<none>"));
+			}
+			else
+			{
+				UE_LOG(LogRTAC, Log, TEXT("  blend: none in progress"));
+			}
+		}
+
+		// Authored FOV, deliberately adjacent to the applied one above.
+		if (ViewTarget != nullptr)
+		{
+			if (const UCameraComponent* const CameraComponent =
+					ViewTarget->FindComponentByClass<UCameraComponent>())
+			{
+				UE_LOG(LogRTAC, Log,
+					TEXT("  CameraComponent '%s': authored FieldOfView %.1f, AspectRatio %.6f"),
+					*CameraComponent->GetName(),
+					CameraComponent->FieldOfView, CameraComponent->AspectRatio);
+			}
+		}
+
+		// The authoritative pixel rectangle. BOTH ProjectWorldLocationToScreen and
+		// DeprojectScreenPositionToWorld operate in this rect (GameplayStatics.cpp:3319-3337 and
+		// :3235-3254), so it is what a logged pixel coordinate actually means. GetProjectionData is
+		// virtual bool and can fail; say so rather than print garbage.
+		ULocalPlayer* const LocalPlayer = PlayerController->GetLocalPlayer();
+		FSceneViewProjectionData ProjectionData;
+		if (LocalPlayer != nullptr && LocalPlayer->ViewportClient != nullptr
+			&& LocalPlayer->ViewportClient->Viewport != nullptr
+			&& LocalPlayer->GetProjectionData(LocalPlayer->ViewportClient->Viewport, ProjectionData))
+		{
+			const FIntRect ViewRect = ProjectionData.GetConstrainedViewRect();
+			UE_LOG(LogRTAC, Log, TEXT("  constrained view rect px: (%d,%d)-(%d,%d) => %d x %d"),
+				ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y,
+				ViewRect.Width(), ViewRect.Height());
+		}
+		else
+		{
+			UE_LOG(LogRTAC, Warning,
+				TEXT("  constrained view rect: UNAVAILABLE -- no LocalPlayer, no viewport, or "
+					 "GetProjectionData failed. Logged pixel coordinates cannot be interpreted."));
+		}
+	}
 } // namespace
 
 // Two independent top-level registrations (Rule 8) -- neither command is reachable through the
@@ -386,6 +563,13 @@ static FAutoConsoleCommandWithWorldAndArgs GRTACScreenToGridSweepConsoleCommand(
 	TEXT("Round-trip every tile center through RTACGridToLocalOffset and RTACScreenToGridPosition, "
 		 "inside PIE, and report N/N. Takes no arguments."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&RTACScreenToGridSweepCommand),
+	ECVF_Cheat);
+
+static FAutoConsoleCommandWithWorldAndArgs GRTACLogActiveCameraConsoleCommand(
+	TEXT("RTAC.LogActiveCamera"),
+	TEXT("Log the active view target and the camera-manager POV that deprojection actually uses, "
+		 "plus the constrained view rect, inside PIE. Takes no arguments."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&RTACLogActiveCameraCommand),
 	ECVF_Cheat);
 
 #endif // !UE_BUILD_SHIPPING
