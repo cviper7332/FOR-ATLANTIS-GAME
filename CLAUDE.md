@@ -1,27 +1,32 @@
 # CLAUDE.md — FOR ATLANTIS (UE5 Project)
 
 ## Session Context
-**Last Updated:** September 25, 2026
+**Last Updated:** September 26, 2026
 **Engine:** Unreal Engine 5.8 (`EngineAssociation: "5.8"`, `IncludeOrderVersion: Unreal5_8`, RHI: DX12)
 **Development floor:** UE 5.8, hard requirement — not an API-compatibility choice but an
 agent-workflow dependency: CC/CC-Opus's live editor introspection (MCP) is a 5.8 Experimental
 feature, confirmed absent from 5.6 and 5.7 on this machine. See `docs/combat_decisions.md`
 Decision #7. RTAC's own *consumer* portability floor (what a project dropping RTAC in requires)
 is separate and still undetermined — see `docs/PHASES.md` Phase 8.
-**Phase:** RTAC Phase 2 (Presentation & First Playable Board), `OPEN` — Part A has one of its two
-items done, and Part B has started out of order: the camera actor is built and PIE-verified, the
-move-input glue is not. Phase 1 and Phase 0 are `CLOSED`. Combat code exists and compiles — see
-Current state below.
+**Phase:** RTAC Phase 2 (Presentation & First Playable Board), `OPEN` — **Part A is COMPLETE**,
+both items done and checked, item 2 closed September 26, 2026 in `bf83f8c`. Part B has started out
+of order: the camera actor is built and PIE-verified, the move-input glue is not. Phase 1 and
+Phase 0 are `CLOSED`. Combat code exists and compiles — see Current state below.
 
 **Current state:** The stock UE5 Third Person template plus its three official variants
 (Combat / Platforming / SideScrolling) remains unmodified. Alongside it, the RTAC plugin holds
-3,805 lines of real, compiling code across 27 source files (counted live September 25, 2026):
+4,380 lines of real, compiling code across 28 source files (counted live September 26, 2026 — `.h`
+and `.cpp` under `Plugins/RTAC/Source/` only, excluding `RTAC.Build.cs`, which is the same basis
+the previous 3,805/27 figure used; the basis is stated so a future count is comparable rather than
+accidentally counting the `.cs` and drifting):
 Phase 1's simulation layer (grid and tile types, the entity struct, per-tile ownership, the
 per-match state container, entity spawn, and the movement-legality check and its resolution) plus
 Phase 2's presentation layer — `RTACBoard` (now carrying `TileSize` and a `SceneRoot`), the
-grid↔world conversion function, screen↔grid hit-testing geometry, and `RTACCombatCamera`, the
-isometric 2.5D camera, PIE-verified to satisfy Decision #15's on-screen direction table. See
-`docs/PHASES.md` Phase 2 for what is verified, what is still theoretical, and what remains open.
+grid↔world conversion function, screen↔grid hit-testing now verified at runtime as well as in
+geometry tests, `RTACCombatCamera`, the isometric 2.5D camera, PIE-verified to satisfy Decision
+#15's on-screen direction table, and three diagnostic console commands that drove that runtime
+verification. See `docs/PHASES.md` Phase 2 for what is verified, what remains open, and the two
+edge cases found during item 2's verification and deliberately left unfixed.
 
 **The type-by-type inventory of what Phase 1 delivered is NOT restated here. It is authoritative
 in `docs/PHASE1_COMPLETED.md` → "What Was Built — Simulation Surface."** It used to live in this
@@ -30,12 +35,14 @@ gets rewritten as the project moves, and Phase 1's delivered surface would have 
 disappeared from the record the first time Phase 2 edited it. A completion record is frozen; this
 file is not. Do not reintroduce the list here (Failure Mode 7).
 
-**All six** UE Automation Tests below were confirmed green together on September 25, 2026, in a
+**All six** UE Automation Tests below were confirmed green together on September 26, 2026, in a
 single run, against a DLL verified on disk to postdate every source edit (`UnrealEditor-RTAC.dll`
-2026-09-25 18:09:33 vs. last source edit 18:06:35; module loaded 18:10:31, tests run 18:11:00).
-That was the last of three rebuilds that day; the earlier runs at 13:54 and 17:37 were also green
-and are superseded by it. This in turn supersedes the older split evidence chain, in which five
-were confirmed together on September 2, 2026 and the sixth separately on September 21.
+2026-09-26 00:45:09 vs. last source edit 00:42:50; module loaded 00:45:44, tests run 00:48:46).
+That run followed the build that added the three diagnostic console commands, so it also confirms
+they disturbed nothing. It supersedes the September 25, 2026 chain (DLL 18:09:33, the last of three
+rebuilds that day; the 13:54 and 17:37 runs were also green), which in turn superseded the older
+split chain in which five were confirmed together on September 2, 2026 and the sixth separately on
+September 21.
 
 `RTAC.Presentation.GridConversion.ScreenToGridPosition` reads **43/43** below, not the 25/25 it
 carried before September 25, 2026: Decision #16's enactment (`3d81b75`) added Case 8, an 18-tile
@@ -73,8 +80,11 @@ Ownership Open Question (logged September 25, 2026, blocks Phase 2 Part B) and a
 
 **Known issues worth recognising before re-investigating them** live in `docs/reference.md`: an
 undiagnosed ~1-in-5 editor crash during automation-test transient-world creation (loud — it
-cannot produce a false green; restart and re-run), a latent tile-boundary rounding risk that is
-safe for click-derived input and unsafe for computed input, and a note that the conversion test's
+cannot produce a false green; restart and re-run), tile-boundary rounding — **no longer latent; as
+of September 26, 2026 it is CONFIRMED**, safe for click-derived input and unsafe for computed
+input, and reachable at the exact screen centre on any board with an even dimension — a newly
+recorded `FMath::RayPlaneIntersection` gap (unguarded on intersection sign and on parallel rays;
+no false positive reachable via `ARTACCombatCamera`), and a note that the conversion test's
 non-identity transform coverage is real but gentle. Each records what was already ruled out, so a
 future session does not re-derive five falsified hypotheses.
 
@@ -569,7 +579,7 @@ Cosmetic, but flag before shipping anything: `Config/DefaultGame.ini` still has
 
 ---
 
-*Last Updated: September 25, 2026*
+*Last Updated: September 26, 2026*
 *Phase 1 (Grid & Movement — Headless Simulation) closed September 3, 2026, enacted in 6342e68,
 c436334, f1363b4, 9595330, 37f68cb, e0edee9. Decisions #1–#14 were logged; the movement-legality
 check and its resolution were implemented; the match-state container and entity spawn landed
@@ -579,13 +589,18 @@ Exit Review ran September 3, 2026 — findings in `docs/PHASE1_CHECK.md`, author
 record in `docs/PHASE1_COMPLETED.md`. History only — see the paragraph below for the current
 phase.*
 
-*Phase 2 (Presentation & First Playable Board), OPEN as of this update. Part A item 1 (grid↔world
-conversion) done, `RTACGridToLocalOffset` in `6f60bfb`. Part A item 2 (screen↔grid hit-testing)
-implemented, geometry-verified at 43/43, and still unchecked — but for a narrower reason than
-before: the camera now exists and is PIE-verified, and what remains is that
-`RTACScreenToGridPosition`'s deprojection path has never run at runtime. Part B started out of
-order: `ARTACCombatCamera` (`794dbb9`) satisfies Decision #15's on-screen table under both
-identity and rotated board transforms; `ARTACBoard` gained `TileSize` and, in `5fac032`, a
-`SceneRoot` without which it could never be placed. Still open: Match-State Ownership, the
-camera-swap falsifiable test, the move-input glue, and the runtime hook that closes item 2.
-Full detail in `docs/PHASES.md` → Phase 2.*
+*Phase 2 (Presentation & First Playable Board), OPEN as of this update, with **Part A complete**.
+Part A item 1 (grid↔world conversion) done, `RTACGridToLocalOffset` in `6f60bfb`. Part A item 2
+(screen↔grid hit-testing) closed September 26, 2026 in `bf83f8c`: `RTACScreenToGridPosition`'s
+deprojection path executed at runtime for the first time, driven by console commands added in
+`ba950b4` and `da74208` — 18/18 tile round-trips at each of two camera poses, a boundary crossing
+landing where predicted, negative cases confirmed at the board's far edge, and the view target
+established directly rather than inferred. Precisely what that checkbox does and does not claim is
+stated in `PHASES.md` and deliberately not restated here. Part B started out of order:
+`ARTACCombatCamera` (`794dbb9`) satisfies Decision #15's on-screen table under both identity and
+rotated board transforms; `ARTACBoard` gained `TileSize` and, in `5fac032`, a `SceneRoot` without
+which it could never be placed. Still open: Match-State Ownership, the camera-swap falsifiable
+test, and the move-input glue. Two edge cases were found during item 2's verification and
+deliberately left unfixed, both recorded in `docs/reference.md` (`65d9480`): tile-boundary
+rounding, now CONFIRMED rather than latent, and `FMath::RayPlaneIntersection` unguarded on
+intersection sign. Full detail in `docs/PHASES.md` → Phase 2.*
