@@ -1455,6 +1455,36 @@ correctly insists on visual verification before hit-testing is trusted. That is 
 "mechanism claims are facts in source, not judgment calls" landing in an entry that was otherwise
 careful about this exact hazard.
 
+**Addendum, September 25, 2026 — the camera dependency this entry created is discharged, and the
+visual verification it required has been performed.**
+
+The "Dependency this entry creates but does not itself satisfy" paragraph above states that a grep
+across `Plugins/RTAC/` for any camera type returns zero hits. That was true when written and is
+now false: `ARTACCombatCamera` exists (`794dbb9`). The original text stands per Rule 4; this
+addendum records what changed.
+
+**Both outstanding requirements are met:**
+
+- *"whoever builds the Part B camera actor must orient it to satisfy this table"* — done, and
+  enforced rather than documented. `ARTACCombatCamera` clamps Pitch to (-89, -1) and Yaw to
+  (-89, 89), which is the range Decision #16 derived, making a table-violating orientation
+  unreachable from the Details panel.
+- *"must verify that satisfaction visually in PIE"* — done, and numerically rather than by eye.
+  Corner markers at tiles (0,0), (0,5), (2,0), (2,5) read back at screen pixels (240,303),
+  (711,303), (295,200), (656,200): Column+ moves right, Row+ moves up. Repeated against a board
+  translated to (500,-300,120) and rotated 90 degrees, the positions were pixel-identical — so the
+  table holds independently of where the board sits or how it is rotated.
+
+**One thing this addendum must not be read as reinstating.** The parent paragraph also asserts the
+table composes with "`RTACGridToLocalOffset`'s existing Column→local-X, Row→local-Y mapping ...
+without a hidden flip." That claim was already corrected by this entry's first addendum of the
+same date; Decision #16 reversed the pairing to Row → local X, Column → local Y. The verification
+above was performed against the **corrected** mapping.
+
+**Status stays `OPEN`.** What is discharged is the camera dependency, not the decision. The table
+itself is still not enacted anywhere — no input layer maps a keypress to a grid delta, because the
+move-input glue remains blocked on the Match-State Ownership Open Question.
+
 ---
 
 
@@ -1802,3 +1832,8 @@ is unchanged and remains correct. No other Decision numbers or statuses change.*
 
 *Addendum, September 25, 2026 — Decision #16 moved OPEN → CLOSED, enacted in `3d81b75`
 (43/43, six-test regression green). #1–#15 statuses unchanged.*
+
+*Addendum, September 25, 2026 — Decision #15 amended by a second addendum of this date: its camera
+dependency is discharged (`ARTACCombatCamera`, `794dbb9`) and its required PIE visual verification
+performed. #15 remains `OPEN`; the direction table is not yet enacted in an input layer. No new
+Decision was logged for the camera work — it is enactment of #15 and #16, not new design.*
