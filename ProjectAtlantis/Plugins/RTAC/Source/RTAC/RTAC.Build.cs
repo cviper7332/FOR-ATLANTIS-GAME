@@ -9,7 +9,8 @@ public class RTAC : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core",
 			"CoreUObject",
-			"Engine"
+			"Engine",
+			"EnhancedInput"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
