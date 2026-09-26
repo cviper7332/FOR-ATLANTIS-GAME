@@ -412,6 +412,39 @@ explicit and tunable instead of silently baked into a distance constant.
 
 ---
 
+## Editor and Asset Tooling (UE5.8)
+
+### A targeted level save reports success without persisting actor deletions (One File Per Actor)
+
+**Observed September 25, 2026.** After removing twelve actors from `Lvl_ThirdPerson` through the
+editor, saving the level *by path* — `save_assets(["/Game/ThirdPerson/Lvl_ThirdPerson"])` via the
+MCP `AssetTools` toolset — returned `true` and persisted nothing. The deleted actors' packages kept
+their original timestamps and the `.umap` was untouched. `save_assets([])`, which saves all dirty
+assets, removed them correctly.
+
+**Why.** This project's maps use One File Per Actor: each actor lives in its own package under
+`Content/__ExternalActors__/<Map>/`, not inside the `.umap`. Deleting an actor dirties *that
+actor's* package and marks it pending-delete. The level package itself need not be dirty at all,
+so a save scoped to the level path has nothing to do and truthfully reports success — while the
+external packages sit unsaved on disk.
+
+**The trap is that the return value is not a lie, and is not useful.** `true` means "the asset you
+named was handled," not "your deletion is now on disk." Any cleanup verified by a save's return
+value will report clean while the files remain.
+
+**Guard.** After deleting actors, save all dirty assets rather than a named path, and verify
+against the filesystem rather than the return value — `git status`, or timestamps under
+`Content/__ExternalActors__/`. Note `git status` can mislead in the other direction too: once the
+`.uasset` files go, the now-empty hash directories remain, and git does not track empty
+directories, so a clean status is consistent with leftover empty folders. Those are harmless.
+
+**Verified live:** twelve `remove_from_scene` calls, all `true`;
+`save_assets(["/Game/ThirdPerson/Lvl_ThirdPerson"])` → `true`, files unchanged at 18:09:07;
+`save_assets([])` → `true`, all six `.uasset` files gone, tracked `__ExternalActors__` count
+unchanged at 479, `git status --untracked-files=all` empty.
+
+---
+
 *Created August 29, 2026, per Rule 13 (system date checked live before writing). Structure is
 meant to extend indefinitely — each future verified API area gets its own `##` section following
 this same pattern: what was checked, the exact citation, and any judgment calls made along the way
