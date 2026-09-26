@@ -1631,6 +1631,42 @@ enactment actually did, per Rule 4.
 
 ---
 
+## Decision #17 — Match-State Ownership: RTAC-Owned `final` `UWorldSubsystem`, Restricted to Game/PIE Worlds
+
+**Date:** September 26, 2026
+**Phase:** RTAC Phase 2 (Presentation & First Playable Board)
+**Author:** Omar (CC/Opus recommendation, adversarially re-verified live by Claude and CC across engine source, a rebuilt-and-run probe, and the full test suite)
+**Status:** OPEN — design ruling settled and evidence-backed; nothing production-facing enacted yet
+
+**Decision:** `FRTACMatchState` is owned at runtime by a dedicated RTAC `UWorldSubsystem`, declared `final`, restricted to `Game` and `PIE` worlds (`DoesSupportWorldType` overridden to drop the engine default's `Editor` inclusion). It holds exactly one `FRTACMatchState` by value, exposes an accessor, and owns explicit `Begin`/`End` calls — no implicit lazy-init. In Phase 2 it needs no tick of its own; the move-input glue reaches it via `GetWorld()->GetSubsystem<T>()` and drives it reactively on each input.
+
+**Why this construct, not the alternatives.** Seven candidates were considered — a static/`UEngineSubsystem`, `AGameMode`, `AGameState`/`UGameStateComponent`, a per-player controller/subsystem/pawn-component, `UGameInstanceSubsystem`, a placed actor (including `ARTACBoard` itself), and the world subsystem chosen here — checked against Rules 5, 6, 7, and 8 specifically:
+
+- **Rule 6 (exactly one explicit owner, no hidden state)** is satisfied *by construction*, not by convention, only here. The engine's subsystem collection rejects a duplicate instance of the exact class outright, and `final` closes the one real gap in that guarantee: without it, a subclass could be silently created as a second live instance. This isn't hypothetical for this project: Epic's own `UMassTestWorldSubsystem` is a live, silent, test-only world subsystem sitting in this project's ordinary editor world with no creation override — demonstrating the exact mechanism a non-`final` RTAC subsystem would be exposed to, most plausibly via this project's own test code compiling into the editor build. Every other candidate's uniqueness is either a per-map convention (`GameMode`/`GameState`), a level-placement convention (a placed actor), or a coincidence of there being one local player.
+- **Rule 8 (independently gated, never nested inside another system's guard)** rules out `GameMode`, `GameState`, and any placed actor as the owner outright: actor `BeginPlay` — and therefore a placed actor's own setup — is dispatched only through the `GameMode`/`GameState` path. A world with no `GameMode` never runs it at all. A world subsystem's existence, by contrast, is decided purely by its own `DoesSupportWorldType`, evaluated independent of whatever `GameMode` a given map uses.
+- **Rule 5 (simulation owns state, presentation reads it)** is satisfied at the struct level by every candidate equally, since no `Simulation/` header has a `UObject`/`AActor` member or `UPROPERTY`. Candidates differ in how much *pressure* the host applies toward reflecting the struct anyway — `GameState` exists specifically to replicate data to clients, real pressure in the wrong direction; a world subsystem applies none.
+- **Rule 7 (fixed tick order)** doesn't distinguish the candidates yet, because Phase 2's move-input glue is purely reactive, driven synchronously inside the `PlayerController`'s own input tick with no simulation tick to order. This becomes live again once Phase 4/5 introduces a real per-frame tick — at that point the subsystem uses either UE5's plain tickable-object slot (no tick group, no prerequisites) or an owned tick function with an explicit group and prerequisites (the pattern `Mass` uses internally). **That choice is explicitly deferred, not decided here.**
+- **Rule 11 (portability) and the still-open Phase 7 transition mechanism** favor the subsystem too: no project using RTAC needs to reparent its `GameMode`, `GameState`, or `PlayerController`, and it behaves identically under every candidate Phase 7 transition (in-place, streamed sub-level, or full map travel). A `GameInstanceSubsystem` was rejected specifically because it solves a lifetime problem match state doesn't have — it would outlive the world a match started in.
+
+**What was verified, and how (Rule 15):** every load-bearing engine-source citation was independently re-grepped against actual UE5.8 source, with one path correction (`SubsystemCollection.cpp` lives under `Private/Subsystems/`) and one substantive correction reduced to its precise conditional form (`GetSubsystem<Base>()` returns the base instance reliably when one exists for that world; only falls through to an unordered array match, possibly a subclass, when it doesn't). A `final` `UWorldSubsystem` was confirmed to compile and be discoverable in this engine version via two of Epic's own shipped classes, live-resolved by object path with a working negative control. It was then confirmed to compile inside RTAC's own module on this machine's toolchain and be found by `GetSubsystem<T>()` as the exact same instance — not merely something non-null — by building and running a throwaway probe (`RTACFinalSubsystemProbe`), verified against the DLL timestamp, cross-checked between MCP and the disk log, and controlled both positively and negatively. The probe was afterward deleted; the project was independently reverified back to its exact pre-probe baseline (28 files, 4,380 lines; DLL byte-identical to the pre-probe build; full six-test suite green at 43/43, 13/13, 51/51, 74/74, 24/24, 6/6, zero `[FAIL]`, exactly the four expected `MultiEntity` warnings). **The general verification procedure this work produced — DLL-timestamp discipline, single-editor-instance checking, MCP-versus-disk-log cross-checks, paired positive/negative controls, and watching for truncated command output — is documented as its own reusable pattern in `docs/reference.md` rather than restated here (Failure Mode 7); that section is the citation for the methodology, this entry is the citation for the result.**
+
+The real risk `final` guards against was itself confirmed live, not assumed: `UMassTestWorldSubsystem` is a demonstrated real-world instance of exactly the silent-duplication pattern this decision's `final` requirement exists to prevent. One engine doc/code discrepancy was also found and confirmed independently twice over: `WorldSubsystem.h`'s `OnWorldEndPlay` comment claims it runs "before ... EndPlay on all actors"; the actual `World.cpp` body runs actor `EndPlay` first. Not load-bearing here, but worth carrying forward as a general "trust the code, not the header comment" instance.
+
+**Not verified, and explicitly not relied on:** that `final` actually blocks a subclass from compiling — observable only by a build meant to fail, not attempted, and not needed, since the compiler's enforcement of `final` is a language guarantee rather than a project-specific claim.
+
+**Explicitly deferred — flagged for their own resolution, not silently assumed:**
+- **What starts a match in Phase 2** — most likely a placed `ARTACBoard` calling `Begin` from its own `BeginPlay`, itself dispatched through whatever `GameMode` the level uses — but this must be recorded as a *replaceable bootstrap trigger*, not folded into the owner's own gating; Phase 7 will replace it.
+- **Seed source** for `Initialize(seed)`, and how the input glue learns which `EntityId` it controls.
+- **Re-`Begin` behavior while a match is already active** — refuse, or implicitly `End` then `Begin`. Must be stated explicitly, not left implicit (Rule 6).
+- **Board reference** — whether the owner also remembers which `ARTACBoard` the match started on, so the glue gets `TileSize` and board transform from one place rather than two (Failure Mode 7).
+- **Naming collision** between RTAC's own "match" and `AGameMode::MatchState`'s pre-existing, unrelated level-session "match" concept.
+- **The eventual simulation tick** this subsystem may need once Phase 4/5 lands — will be exactly the "combat manager tick" Rule 8 already warns about; each system inside it needs its own independent top-level gate from day one.
+- **`RTAC.Build.cs` does not yet list `EnhancedInput`** — required before the move-input glue itself can be built.
+
+**Resolves:** the Match-State Ownership Open Question (`combat_decisions.md`), which blocked Phase 2 Part B's move-input glue.
+
+---
+
 
 
 ## Open Questions
@@ -1728,6 +1764,12 @@ Brainstormed directions, none locked, to revisit once the core loop is playable:
   (no hidden/global state) as the constraints the answer must satisfy — whichever owner is chosen
   must hold the state explicitly, not implicitly. Required before Part B's move-input glue can be
   implemented.
+
+**Addendum, September 26, 2026 — resolved by Decision #17.** This Open Question is answered:
+`FRTACMatchState` is owned by a dedicated RTAC `UWorldSubsystem`, declared `final`, restricted to
+`Game`/`PIE` worlds. See Decision #17 for the full ruling, the seven-candidate comparison against
+Rules 5/6/7/8, and the live verification evidence. This entry's own text is left unchanged per
+Rule 4; this addendum records only that it is resolved and points to where.
 
 ---
 
@@ -1837,3 +1879,9 @@ is unchanged and remains correct. No other Decision numbers or statuses change.*
 dependency is discharged (`ARTACCombatCamera`, `794dbb9`) and its required PIE visual verification
 performed. #15 remains `OPEN`; the direction table is not yet enacted in an input layer. No new
 Decision was logged for the camera work — it is enactment of #15 and #16, not new design.*
+
+*Addendum, September 26, 2026 — Decision #17 logged (Match-State Ownership: RTAC-owned `final`
+`UWorldSubsystem`, restricted to Game/PIE worlds), `OPEN` at creation, nothing production-facing
+enacted yet. This resolves the Match-State Ownership Open Question logged September 25, 2026,
+which blocked Phase 2 Part B's move-input glue — that Open Question's own text carries a matching
+dated addendum pointing back to #17. #1–#16 statuses unchanged from above.*
