@@ -76,6 +76,22 @@ fact does not satisfy this rule. For CC/Opus specifically:
 - This is a temporary tightening, not a permanent demotion. Revisit once CC/Opus demonstrates
   reliable compliance across several consecutive tasks.
 
+**Addendum, September 26, 2026 — CC/CC-Opus routing default made explicit.** Default routing for
+all PROJECTS prompts is CC, not CC/Opus. Every time a prompt routes to CC/Opus instead of CC, the
+routing prose must explicitly state the justification: source-verification, physics/architecture
+judgment, engine-source claims, or first-time interface decisions. Omar has flagged over-routing
+to CC/Opus as a recurring problem, which is the reason this is now written down rather than left
+as an informal norm.
+
+UE5 engine-source questions requiring live engine access go to whichever of CC or CC/Opus actually
+has live UE5 access — not to claude.ai Opus — even when the question is otherwise a design/judgment
+call that would normally route to CC/Opus on its merits.
+
+**HOLD SHORT marker.** Tasks routed to CC/Opus (research, verification, or judgment-heavy work)
+must carry a HOLD SHORT marker in the routed prompt. This restriction applies to CC/Opus
+specifically, not CC — CC's task profile (applying already-approved diffs, mechanical work) has
+not shown the Rule 9 violation pattern that motivated this marker, and does not need it.
+
 **Why it matters more here than on PRS:** this project has no version control (Rule 3). An
 unapproved write on PRS was recoverable from git. Here it is not.
 
