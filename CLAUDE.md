@@ -146,6 +146,20 @@ the build-verification consequence this correction carries.
 
 ---
 
+### PEA Mode (Plain English with Analogies)
+
+When Omar uses "PEA mode" for discussing complex technical or tradeoff questions, he is
+requesting explanations in plain language with real-world analogies rather than dense
+technical jargon or abstract reasoning. This style makes design choices and trade-offs
+accessible and intuitive to reason about.
+
+Apply PEA mode by default when Omar raises architectural decisions, performance
+trade-offs, or design questions involving multiple legitimate approaches — even if the
+question could be answered in pure technical terms. The goal is clarity and intuitive
+understanding, not maximum precision per se.
+
+---
+
 ## Project Layout
 
 ```
