@@ -321,6 +321,46 @@ Every API it needs is public: `FThreadSafeObjectIterator` (`UObjectIterator.h`),
 `UWorld::Scene` (`World.h:1504`). Taking the census at two points rather than one is what made
 the finding provable on a passing run, with no reproduction required.
 
+### Non-identity transform coverage: yaw 90 is a best case, not an adversarial one
+
+`FTransform::TransformPosition` composed with `InverseTransformPosition` is mathematically an
+identity, but **not** in floating point. A rotation is stored as a quaternion built from
+`sin/cos` of half the angle, which are generally not representable, so a round trip through a
+rotated transform introduces roughly **1e-14** of absolute error. Under an identity transform the
+error is exactly zero — which means a test whose actor sits at identity is not exercising this at
+all, however non-identity its intent.
+
+**Measured, September 25, 2026:** an `ARTACBoard` placed at yaw 90 reads its rotation back as
+**89.999999999999986**, about 1.4e-14 off.
+
+**Why yaw 90 is unusually forgiving.** Its rotation matrix entries are 0 and ±1 to within 1e-16,
+so almost nothing is lost. An arbitrary angle — yaw 37.4, or any pitch/roll combination — has no
+exactly representable entries and produces materially larger error.
+`RTACGridConversionTest.cpp` spawns its board at `Location (500,-300,120)`, `Yaw 90`. That
+coverage is **real** — it proves the transform is applied, which was false before `ARTACBoard`
+gained a `SceneRoot` — but it is **gentle**. It does not stress-test rounding, and a future
+author should not read a green run as evidence that rotated-board hit-testing is robust.
+
+**The actual risk: click-derived inputs are safe, computed-derived inputs are not.**
+`RTACWorldPositionToGridPosition` uses `FloorToInt32`, which is maximally sensitive at an exact
+tile boundary — 1e-14 of error is enough to floor `2.0` down to `1`.
+
+- **A real click cannot practically hit this.** The world position comes from deprojecting a
+  screen pixel through a perspective ray. The vulnerable band is roughly 1e-12 units wide on a
+  200-unit tile; a click will not land in it.
+- **Computed positions land in it by construction.** Anything derived from
+  `RTACGridToLocalOffset` produces exact multiples of `TileSize` — an entity snapped to its own
+  tile, a projectile evaluated at tile steps, a round trip taken at a tile *corner* rather than
+  its centre. The conversion test's Case 8 avoids this only because it offsets by half a tile
+  before inverting.
+
+**Status: latent, unconfirmed, low priority.** No boundary flip has been observed; the run of
+September 25, 2026 passed 43/43 with the mechanism demonstrably present. This is recorded so that
+a green run is not mistaken for proof it cannot happen, and so the click/computed distinction is
+available if grid lookups over computed world positions are ever added. Whether
+`RTACWorldPositionToGridPosition` should tolerate boundary error is an open design question, not
+a settled one.
+
 ---
 
 ## Camera and Projection (UE5.8)
