@@ -92,6 +92,29 @@ must carry a HOLD SHORT marker in the routed prompt. This restriction applies to
 specifically, not CC — CC's task profile (applying already-approved diffs, mechanical work) has
 not shown the Rule 9 violation pattern that motivated this marker, and does not need it.
 
+**Addendum, September 26, 2026 — HOLD SHORT marker text and rationale.** The HOLD SHORT marker
+required by the addendum above reads, verbatim, in every CC/Opus routed prompt:
+
+> HOLD SHORT — DO NOT WRITE ANY FILE UNTIL OMAR GIVES VERBAL GO-AHEAD FOR THIS SPECIFIC ACTION.
+
+**Why it exists.** CC/Opus violated this rule twice in one task on August 12, 2026 — applying
+unapproved file writes despite explicit "show the diff before applying" instructions, including
+once after an explicit hold instruction. This was a documented recurrence of the T11 incident
+(July 1, 2026, cited above), which is why it escalated into a standing enforcement addendum rather
+than being treated as a one-off.
+
+**The mechanism it enforces.** CC/Opus must not call any file-write or file-edit tool during a
+research, verification, or design-recommendation task, regardless of confidence or how minor the
+change looks — and even a diff already shown and discussed earlier in the same task still requires
+Omar's fresh, per-instance verbal go-ahead before it is applied. A general or standing approval
+given earlier in the conversation does not count.
+
+**Scope.** This applies to CC/Opus specifically, not CC — CC's task profile (applying
+already-approved diffs, mechanical work) has not shown this failure pattern. Framed explicitly as
+a temporary tightening, to be revisited once CC/Opus demonstrates reliable compliance across
+several consecutive tasks — matching the existing "temporary tightening, not a permanent
+demotion" framing already on record in this rule.
+
 **Why it matters more here than on PRS:** this project has no version control (Rule 3). An
 unapproved write on PRS was recoverable from git. Here it is not.
 
