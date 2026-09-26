@@ -463,17 +463,19 @@ reasoning lives in the decision addendum and is not restated here.
 
 **Status:** `OPEN`
 
-> **Progress note, September 25, 2026 (supersedes the earlier note of the same date).**
+> **Progress note, September 26, 2026 (replaces the note of September 25, 2026 in place; that
+> note's camera findings are carried forward below unchanged and re-dated).**
 >
-> **Part A item 1: done and checked. Item 2: still open** — the reason narrowed sharply this
-> session but did not disappear; see the checkbox's own note.
+> **Part A is COMPLETE — both items done and checked.** Item 2 closed September 26, 2026, when
+> `RTACScreenToGridPosition` executed at runtime for the first time. See the checkbox's own note
+> for precisely what that verified and what it deliberately does not claim.
 >
 > **Part B has started, out of order and deliberately.** The camera was built ahead of the
 > move-input glue because Decision #15 made it a prerequisite for trusting hit-testing at all,
 > and because neither of Part B's actual blockers touches it.
 >
-> **PIE-VERIFIED this session** — live placement in `Lvl_ThirdPerson`, screen positions read back
-> numerically rather than eyeballed:
+> **PIE-VERIFIED September 25, 2026** — live placement in `Lvl_ThirdPerson`, screen positions read
+> back numerically rather than eyeballed:
 > - `ARTACCombatCamera` exists, self-frames from the board's dimensions, and satisfies Decision
 >   #15's on-screen table. Corner markers at tiles (0,0), (0,5), (2,0), (2,5) resolved to screen
 >   pixels (240,303), (711,303), (295,200), (656,200) — Column+ goes right, Row+ climbs.
@@ -483,8 +485,11 @@ reasoning lives in the decision addendum and is not restated here.
 >   not be moved until `5fac032`.
 > - Decision #16's axis reversal is therefore confirmed **on screen**, not only in geometry tests.
 >
-> **STILL THEORETICAL — never executed at runtime:** `RTACScreenToGridPosition`'s deprojection
-> path. This is the entirety of what keeps Part A item 2 open.
+> **RUNTIME-VERIFIED September 26, 2026 — this replaces the "STILL THEORETICAL, never executed at
+> runtime" note that stood here.** `RTACScreenToGridPosition`'s deprojection path has now run, more
+> than forty times across two camera poses, driven by console commands added in `ba950b4`
+> (`RTAC.ScreenToGrid`, `RTAC.ScreenToGridSweep`) and `da74208` (`RTAC.LogActiveCamera`). The
+> evidence lives in the item 2 checkbox note below and is not restated here (Failure Mode 7).
 >
 > **Also landed:** `ARTACBoard::TileSize` (default 200) and a `SceneRoot` on `ARTACBoard`, which
 > previously had no RootComponent and so was pinned to the world origin with a permanently
@@ -496,11 +501,14 @@ reasoning lives in the decision addendum and is not restated here.
 > - **Camera-swap falsifiable test** — mechanism designed; now *unblocked* (a camera exists to
 >   swap) but not yet run.
 > - **Move-input glue** — designed, blocked on Match-State Ownership.
-> - **`RTACScreenToGridPosition` runtime hook** — the only thing between item 2 and closure.
->   Explicitly NOT blocked on Match-State Ownership: the function takes a caller-supplied
->   `FRTACGrid`, so a throwaway `Grid.Init(Rows, Columns)` suffices for hit-testing.
-> - **Boundary-rounding latent risk** (`docs/reference.md`) — click-derived input safe,
->   computed-derived input not. Unconfirmed, low priority.
+> - **Boundary-rounding, now CONFIRMED** (`docs/reference.md`, `65d9480`) — no longer latent. First
+>   observed September 26, 2026: an exactly-centred screen pixel is a *computed* input, and
+>   `FrameBoard()` puts the look-at point on a tile boundary whenever a grid dimension is even, so
+>   the 3x6 default makes this reachable at the literal centre of the screen. No guard was added;
+>   whether one belongs is an open design question, recorded in full in `reference.md`.
+> - **`FMath::RayPlaneIntersection` unguarded on intersection sign and on parallel rays**
+>   (`docs/reference.md`, `65d9480`) — found while probing. No false positive is reachable via
+>   `ARTACCombatCamera`, since `FrameBoard()` always looks at the board. Reported, not fixed.
 > - **Transient-world crash** (`docs/reference.md`) — undiagnosed ~1-in-5 editor kill during
 >   automation-test world creation. Loud; cannot produce a false green. Restart and re-run.
 
@@ -530,28 +538,48 @@ phase exists to validate has already failed.
       named grid↔world function: no other conversion exists in `Presentation/`, and nothing in
       `Simulation/` calls it. Flat per Decision #1 — no isometric skew or elevation contribution
       folded in at this boundary.
-- [ ] Screen-space ↔ grid-space hit-testing is implemented in grid space, related to screen
+- [x] Screen-space ↔ grid-space hit-testing is implemented in grid space, related to screen
       space by the isometric projection, not an axis swap (Rule 10, Decision #1)
       — `RTACScreenToGridPosition`/`RTACWorldPositionToGridPosition` (`64b36b8`) are real
       deprojection-based code, not an axis swap, and the post-intersection geometry half is
       test-verified (`RTAC.Presentation.GridConversion.ScreenToGridPosition`, 43/43 — 25/25
       until Decision #16's enactment in `3d81b75` added Case 8's 18-tile round-trip).
 
-      > **Still unchecked, September 25, 2026 — and the reason has changed.** The earlier reason
-      > was that no camera existed to relate screen space to. That is no longer true:
-      > `ARTACCombatCamera` is built and was PIE-verified this session under both identity and
-      > non-identity board transforms (progress note above).
+      > **Checked September 26, 2026. What is verified, stated precisely: a real screen position
+      > resolved through the real deprojection path at runtime — NOT a literal mouse-click event.**
+      > No input binding exists yet; the screen positions were supplied explicitly to a console
+      > command. The earlier wording of this note said the item closes when "a runtime hook resolves
+      > a real PIE click," and that phrasing is deliberately narrowed rather than met: an explicitly
+      > stated pixel makes a prediction reproducible and checkable after the fact, which a
+      > hand-aimed click does not. The input stack proper belongs to Part B's move-input glue.
       >
-      > **What remains is one specific gap: `RTACScreenToGridPosition` has never run.** The PIE
-      > work verified the FORWARD direction — grid to local to world to screen. It did not touch
-      > the INVERSE direction through the deprojection code, which is what this checkbox is about.
-      > The test cannot cover it either: the real `DeprojectScreenPositionToWorld` needs a live
-      > LocalPlayer with an attached viewport, which exists only inside PIE.
+      > **Instrument:** `RTAC.ScreenToGrid <X> <Y>` and `RTAC.ScreenToGridSweep` (`ba950b4`), plus
+      > `RTAC.LogActiveCamera` (`da74208`). Diagnostic-only under Rule 9, compiled out of Shipping,
+      > and deliberate removal candidates once Part B's input layer exists.
       >
-      > So this item's own closing condition — "the deprojection path is exercised against [the
-      > camera]" — is unmet even though its other condition is now met. It closes when a runtime
-      > hook resolves a real PIE click to a tile confirmed against a known screen position. That
-      > hook is NOT blocked on Match-State Ownership; see the progress note.
+      > **Evidence** — board at `Location (500,-300,120)`, `Yaw 90`, `TileSize 200`, grid 3x6, PIE
+      > viewport 951x520, against a DLL confirmed to postdate every source edit:
+      > - All 18 tile centres round-trip to themselves: **18/18 at Pitch -40, and 18/18 again at
+      >   Pitch -10** — the path holds across two camera poses with zero code change.
+      > - A boundary crossing lands where predicted: px 448.7 resolves to (Row 1, Column 2) and
+      >   px 502.3 to (Row 1, Column 3), 30% and 70% of the way between those tiles' centres. This
+      >   is what exercises `floor()` through the live deprojection rather than at hand-picked
+      >   local points.
+      > - Off-board pixels return false, with the board's far edge bracketed from both sides
+      >   (py 158 inside → (Row 2, Column 3); py 145 outside → no hit). `false` is half this
+      >   function's contract and had never been observed at runtime for a geometric miss.
+      > - The camera actually in use was **confirmed, not assumed**: `RTAC.LogActiveCamera` reports
+      >   `RTACCombatCamera` as the view target, its POV matching its actor transform, no blend in
+      >   progress, and the engine's own constrained view rect at 951x520 — the same dimensions
+      >   independently reconstructed from the sweep's own pixel invariants.
+      >
+      > **What this does NOT verify, so the box is not over-read.** The sweep cannot detect a wrong
+      > view target on its own: both of its legs go through one `PlayerController`, so a
+      > consistent-but-wrong camera would still round-trip 18/18. That is why the view target is
+      > evidenced separately. Two edge cases were found during this work and deliberately left
+      > unfixed, both recorded in `docs/reference.md` (`65d9480`): tile-boundary rounding, now
+      > confirmed and reachable at the exact screen centre on any board with an even dimension, and
+      > `FMath::RayPlaneIntersection` being unguarded on intersection sign.
 
 **Part B — requires UE5 open**
 - [ ] **Falsifiable test:** changing the camera (e.g. swapping isometric angle) requires zero
