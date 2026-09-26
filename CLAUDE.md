@@ -99,13 +99,6 @@ have been discharged here by any amount of further work, which is why the box is
 than held open. `docs/PHASES.md` states this in full; whoever closes Phase 4 or Phase 5 should
 read it there.
 
-*One correction was deliberately kept out of the closing commit.* `RTACDeterminismTest.cpp`'s
-header comment still says the multi-entity test logs "three" deliberate warnings. It logs four,
-since Decision #12's `NotAdjacent` case. The fix is comment-only and cannot change behaviour, but
-landing it would have made plugin source newer than `UnrealEditor-RTAC.dll` and falsified the
-build-verification claim this file and `PHASES.md` both depend on — for a comment. It rides along
-with the next commit that already forces a rebuild. Recorded here so it is not lost.
-
 Phase 1 closing does not relax the sequencing rule: Atlantis-specific modifications (starting with
 elevation, Decision #3) stay layered on **after** the base BN3 combat loop is fully playable, never
 designed simultaneously — see `docs/combat_decisions.md` → Open Questions → "Core BN3 Loop".
