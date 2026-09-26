@@ -354,12 +354,35 @@ tile boundary — 1e-14 of error is enough to floor `2.0` down to `1`.
   its centre. The conversion test's Case 8 avoids this only because it offsets by half a tile
   before inverting.
 
-**Status: latent, unconfirmed, low priority.** No boundary flip has been observed; the run of
-September 25, 2026 passed 43/43 with the mechanism demonstrably present. This is recorded so that
-a green run is not mistaken for proof it cannot happen, and so the click/computed distinction is
-available if grid lookups over computed world positions are ever added. Whether
-`RTACWorldPositionToGridPosition` should tolerate boundary error is an open design question, not
-a settled one.
+**Status: CONFIRMED — first observed September 26, 2026.** This supersedes the earlier status,
+"latent, unconfirmed, low priority," which was accurate while the run of September 25, 2026 passed
+43/43 with the mechanism demonstrably present but never flipped. The entry predicted this failure
+and the prediction was borne out exactly, mechanism included. The click/computed distinction above
+is unchanged and still correct; what is new is a **third** path into the unsafe case that neither
+bullet covers. Whether `RTACWorldPositionToGridPosition` should tolerate boundary error remains an
+open design question, not a settled one — no guard was added.
+
+**The observation.** During Phase 2 Part A item 2's runtime probing, `RTAC.ScreenToGrid 475.5 155.0`
+returned `tile (Row 2, Column 2)` where `Column 3` was predicted. The Row was correct; only the
+Column flipped, and it flipped *down*, exactly as `FloorToInt32` does when 600.0 arrives as
+599.99999…. Board at `Location (500,-300,120)`, `Yaw 90` — the same pose measured above, reading
+back as 89.999999999999986 — `TileSize 200`, grid 3x6, PIE viewport 951x520.
+
+**The third path: an exactly-centred screen pixel is a computed input.** It arrives through the
+deprojection path, so the "a real click cannot practically hit this" reasoning above does not cover
+it — but px 475.5 is the exact optical centre of a 951-wide viewport, so `x_ndc` is exactly 0, the
+deprojected ray carries zero lateral offset, and the hit lands on the camera's look-at coordinate
+exactly rather than in some tile's interior.
+
+**And `ARTACCombatCamera` puts the look-at point on a tile boundary whenever a grid dimension is
+even.** `FrameBoard()` looks at `CenterLocal = (Rows*TileSize/2, Columns*TileSize/2, 0)`. For an
+even count that is an exact multiple of `TileSize` — a tile boundary; for an odd count it is a
+half-multiple — a tile centre. The 3x6 default therefore lands the optical centre on the column
+2/3 boundary (600 = 3x200) and in the middle of row 1 (300 = 1.5x200), which is precisely the
+observed Row-correct/Column-wrong split. **This is reachable by construction on the default board,
+at the screen centre, with no unusual input** — not an exotic case. It is also why the 18-tile
+sweep is clean: tile centres sit at odd multiples of half a tile, so none of them lands on a
+boundary in either axis.
 
 ---
 
@@ -409,6 +432,39 @@ explicit and tunable instead of silently baked into a distance constant.
 **Verified September 25, 2026:** `CameraComponent.h:37,44`; `CameraComponent.cpp:78,81`;
 `CameraStackTypes.cpp:287,299,331-333`; `BaseEngine.ini:2900`; plus a grep of
 `ProjectAtlantis/Config/` for `AspectRatioAxisConstraint` returning zero hits.
+
+### `FMath::RayPlaneIntersection` is an infinite-line intersection, unguarded on sign and parallel
+
+`FMath::RayPlaneIntersection` (`Plane.h:643-652`) computes
+`Distance = Dot(PlaneOrigin - RayOrigin, N) / Dot(RayDirection, N)` and returns
+`RayOrigin + RayDirection * Distance`. **`Distance` may be negative** — the "ray" is an infinite
+line, so a direction pointing *away* from the plane still yields a point, behind the origin. There
+is also no parallel check; the header says outright *"Assumes that the line and plane do indeed
+intersect; you must make sure they're not parallel before calling."* Exactly parallel divides by
+zero, giving ±inf or NaN, which `FMath::FloorToInt32` is not defined for.
+
+**`RTACScreenToGridPosition` performs neither check.** It is currently saved by its bounds check.
+
+**Reachability is a function of camera pitch, and the clamp permits the bad range.** Vertical
+half-FOV is fixed at `atan(tan(FOV/2) / AspectRatio)` = 17.98 degrees for FOV 60 at 16:9 (see the
+entry above), so the top of frame sits at `Pitch + 17.98` degrees. At the default Pitch -40 that is
+22 degrees below horizontal — every pixel looks downward and the case is unreachable. But
+`ARTACCombatCamera::PitchDegrees` is clamped to (-89, -1), and for **|Pitch| < 17.98** the horizon
+enters the frame and above-horizon pixels produce upward rays.
+
+**Probed live, September 26, 2026, at Pitch -10.** Horizon computed at py 118.8;
+`RTAC.ScreenToGrid 475.5 60.0` returned `NO HIT (returned false)`. The intersection parameter is
+-2867.5 — about 2868 units behind the camera — putting the hit at board-local X = -3825, so
+`floor(-19.13)` = -20 and `IsValidPosition` rejects it. **The return value is correct; the reason is
+not.** The bounds check is doing work a sign guard should do. Return value observed; the
+intermediate is derived, since the probe deliberately logs no intermediates.
+
+**Status: latent, mechanism confirmed, no false positive reachable via `ARTACCombatCamera`** —
+`FrameBoard()` always looks at the board, so the board is in front and a behind-camera intersection
+cannot land inside the grid footprint. It would become a false positive only for a view target
+whose backward ray crosses the board plane inside the grid — a camera facing away from the board,
+possible once something other than `ARTACCombatCamera` is the view target. Not demonstrated. The
+exactly-parallel NaN case is also unobserved and hard to hit deliberately.
 
 ---
 
