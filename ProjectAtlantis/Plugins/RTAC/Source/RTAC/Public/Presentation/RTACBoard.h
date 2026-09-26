@@ -5,6 +5,8 @@
 #include "Simulation/RTACGrid.h"
 #include "RTACBoard.generated.h"
 
+class USceneComponent;
+
 /**
  * Presentation-layer wrapper exposing the combat board's dimensions to the level author, per
  * Decision #8's outstanding half: "the presentation-layer wrapper exposing editable
@@ -64,4 +66,20 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = "RTAC|Grid", meta = (ClampMin = "1.0"))
 	float TileSize = 200.0f;
+
+private:
+	/**
+	 * Transform anchor, and the reason this actor can be positioned at all. An AActor with no
+	 * RootComponent has a permanently identity transform -- AActor::ActorToWorld (Actor.h:1561)
+	 * returns FTransform::Identity when RootComponent is null -- so SetActorLocation, and the
+	 * placement transform passed to SpawnActor, both silently no-op. Before this component
+	 * existed a placed ARTACBoard was stuck at the world origin, unrotated, which also made
+	 * RTACWorldPositionToGridPosition's InverseTransformPosition a guaranteed no-op and the
+	 * conversion test's "deliberately non-identity transform" coverage claim false.
+	 *
+	 * VisibleAnywhere, not EditAnywhere: the level author moves this actor with the normal
+	 * transform gizmo, not by reassigning its root component.
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "RTAC|Grid")
+	TObjectPtr<USceneComponent> SceneRoot;
 };
