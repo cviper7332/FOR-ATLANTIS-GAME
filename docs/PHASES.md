@@ -609,6 +609,15 @@ phase exists to validate has already failed.
       >
       > **Blocked on:** Decision #15 (no camera actor exists yet to swap) — implementation
       > cannot start until Part B's camera lands.
+      >
+      > **Addendum, September 26, 2026 (the stated blocker is gone; the item is not).** The named
+      > blocker is cleared: `ARTACCombatCamera` exists and was PIE-verified against Decision #15's
+      > on-screen direction table (`794dbb9`). **The item stays unchecked.** The camera actor's
+      > existence and correctness against #15 is not the same claim as this box's — the
+      > camera-swap falsifiable test itself (the two-configuration `git diff --stat` check against
+      > `Simulation/`, plus the matching automation-test re-run) has not been implemented or run.
+      > The original text above is left unchanged, as with the move-input glue's addendum
+      > immediately below and Phase 1's September 1, 2026 addendum for a cleared blocker.
 - [ ] Board renders and is playable in PIE at the dimensions chosen in Phase 1
 
       > **Move-input glue — designed and approved, not yet implemented.** One Enhanced Input
