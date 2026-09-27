@@ -74,9 +74,13 @@ Success-with-warnings amber rather than green. The full diagnosis — log eviden
 source lines that drive the colour — lives in `RTACMovementTest.cpp`'s own header comment, next to
 the warnings that cause it, and is deliberately not restated here (Failure Mode 7).
 
-All design work lives in `docs/combat_decisions.md` — Decisions #1–#16, plus a Match-State
-Ownership Open Question (logged September 25, 2026, blocks Phase 2 Part B) and a speculative one
-(mid-battle entity-defection to a third party, not current-phase scope).
+All design work lives in `docs/combat_decisions.md` — Decisions #1–#18, plus Open Questions,
+including a speculative one (mid-battle entity-defection to a third party, not current-phase
+scope). The Match-State Ownership Open Question (logged September 25, 2026), which blocked Phase 2
+Part B's move-input glue, is resolved by Decision #17 (an RTAC-owned `final` `UWorldSubsystem`);
+Decision #18 additionally settles the match-start trigger, the player-entity binding, and the
+board reference, plus the subsystem's export visibility. Both are `OPEN` — the design is settled,
+nothing is enacted yet, and the glue itself is still unbuilt.
 
 **Known issues worth recognising before re-investigating them** live in `docs/reference.md`: an
 undiagnosed ~1-in-5 editor crash during automation-test transient-world creation (loud — it
@@ -613,8 +617,10 @@ established directly rather than inferred. Precisely what that checkbox does and
 stated in `PHASES.md` and deliberately not restated here. Part B started out of order:
 `ARTACCombatCamera` (`794dbb9`) satisfies Decision #15's on-screen table under both identity and
 rotated board transforms; `ARTACBoard` gained `TileSize` and, in `5fac032`, a `SceneRoot` without
-which it could never be placed. Still open: Match-State Ownership, the camera-swap falsifiable
-test, and the move-input glue. Two edge cases were found during item 2's verification and
-deliberately left unfixed, both recorded in `docs/reference.md` (`65d9480`): tile-boundary
+which it could never be placed. Still open: the camera-swap falsifiable test and the move-input
+glue — the latter not yet implemented, but no longer blocked on a design question: Match-State
+Ownership is resolved by Decision #17, and Decision #18 settles the match bootstrap. Two edge
+cases were found during item 2's verification and deliberately left unfixed, both recorded in
+`docs/reference.md` (`65d9480`): tile-boundary
 rounding, now CONFIRMED rather than latent, and `FMath::RayPlaneIntersection` unguarded on
 intersection sign. Full detail in `docs/PHASES.md` → Phase 2.*

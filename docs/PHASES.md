@@ -496,11 +496,14 @@ reasoning lives in the decision addendum and is not restated here.
 > identity transform (`5fac032`).
 >
 > **Open, each with its shape stated so none reads as merely "todo":**
-> - **Match-State Ownership** (`combat_decisions.md`) — blocks the move-input glue, which needs a
->   live `FRTACMatchState` to resolve against.
+> - ~~**Match-State Ownership**~~ (`combat_decisions.md`) — resolved by Decision #17: an RTAC-owned
+>   `final` `UWorldSubsystem` holds the live `FRTACMatchState`. No longer blocks the move-input glue.
 > - **Camera-swap falsifiable test** — mechanism designed; now *unblocked* (a camera exists to
 >   swap) but not yet run.
-> - **Move-input glue** — designed, blocked on Match-State Ownership.
+> - **Move-input glue** — designed, **not yet implemented**, and no longer blocked on an open
+>   design question: Decisions #17 (match-state ownership) and #18 (match bootstrap — trigger,
+>   export visibility, entity binding, board reference) together specify what needs to be built.
+>   Only the design is settled; no glue code has been written.
 > - **Boundary-rounding, now CONFIRMED** (`docs/reference.md`, `65d9480`) — no longer latent. First
 >   observed September 26, 2026: an exactly-centred screen pixel is a *computed* input, and
 >   `FrameBoard()` puts the look-at point on a tile boundary whenever a grid dimension is even, so
@@ -636,6 +639,19 @@ phase exists to validate has already failed.
       > **Blocked on:** Decision #15 (direction convention needs a verified camera to be
       > trustworthy on screen) and the Match-State Ownership Open Question (glue can't be wired
       > to a specific owner until that's resolved).
+      >
+      > **Addendum, September 26, 2026 (the stated blockers are gone; the item is not).** Both
+      > blockers named above are cleared. Decision #15's camera dependency was discharged
+      > September 25, 2026 — `ARTACCombatCamera` exists and was PIE-verified against #15's
+      > on-screen table. The Match-State Ownership Open Question is resolved by Decision #17 (an
+      > RTAC-owned `final` `UWorldSubsystem`), which answers item 1 above. Decision #18 settles
+      > the rest of what the glue depends on: the match-start trigger, the subsystem's export
+      > visibility, the player-entity binding (held on the subsystem and read on every press),
+      > and the board reference. Decision #18 Ruling 1 also scopes this box: it is satisfied by
+      > movement alone, on a board with no tile ownership authored, and does not claim ownership
+      > enforcement. **The item stays unchecked.** Only the design is settled — no glue code has
+      > been written, and the board is not yet playable in PIE. The original text above is left
+      > unchanged, as with Phase 1's September 1, 2026 addendum for a cleared blocker.
 
 ---
 
